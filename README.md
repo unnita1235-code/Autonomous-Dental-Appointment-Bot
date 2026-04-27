@@ -1,6 +1,6 @@
 # Autonomous Dental Appointment Bot
 
-Production-focused monorepo for a dental clinic appointment automation platform.
+Production-focused monorepo for a dental clinic appointment automation platform. 
 
 ## Monorepo Layout
 
