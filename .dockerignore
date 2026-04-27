@@ -1,0 +1,28 @@
+# Git and editor metadata
+.git
+.gitignore
+.vscode
+.idea
+
+# Python caches and environments
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+.venv
+venv
+
+# Node artifacts
+**/node_modules
+**/.next
+
+# Local env and logs
+.env
+*.log
+
+# Build and runtime artifacts
+dist
+build
+coverage

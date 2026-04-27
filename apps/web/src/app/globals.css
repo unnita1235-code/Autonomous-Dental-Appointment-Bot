@@ -1,0 +1,49 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1A6B8A;
+  --color-primary-hover: #155a75;
+  --color-primary-light: #e8f4f8;
+  --color-accent: #2EC4B6;
+  --color-accent-hover: #25a99c;
+  --color-surface: #F7FAFC;
+  --color-success: #38A169;
+  --color-warning: #DD6B20;
+  --color-error: #E53E3E;
+  --color-muted: #718096;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) #e2e8f0;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #e2e8f0;
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 9999px;
+  border: 2px solid #e2e8f0;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-hover);
+}
+
+body {
+  font-family: "DM Sans", sans-serif;
+  background-color: var(--color-surface);
+  color: #1a202c;
+}

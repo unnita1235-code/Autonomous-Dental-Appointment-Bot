@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dental-bot-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dental_bot}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dental_bot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: dental-bot-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: dental-bot-api:dev
+    container_name: dental-bot-api
+    working_dir: /app
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    image: dental-bot-api:dev
+    container_name: dental-bot-worker
+    working_dir: /app
+    env_file:
+      - .env
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      api:
+        condition: service_started
+    command: celery -A app.workers.celery_app worker --loglevel=info
+
+  flower:
+    image: dental-bot-api:dev
+    container_name: dental-bot-flower
+    working_dir: /app
+    env_file:
+      - .env
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      worker:
+        condition: service_started
+    command: celery -A app.workers.celery_app flower --port=5555
+
+volumes:
+  postgres_data:
+  redis_data:
