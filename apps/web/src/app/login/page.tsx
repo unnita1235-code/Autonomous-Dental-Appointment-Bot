@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -14,8 +14,6 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage(): JSX.Element {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/dashboard";
   const [submitError, setSubmitError] = useState<string>("");
   const {
     register,
@@ -49,6 +47,10 @@ export default function LoginPage(): JSX.Element {
       setSubmitError(data.error ?? "Login failed. Please check your credentials.");
       return;
     }
+    const redirect =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("redirect") || "/dashboard"
+        : "/dashboard";
     router.replace(redirect);
     router.refresh();
   };
