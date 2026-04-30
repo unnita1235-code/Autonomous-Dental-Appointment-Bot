@@ -49,7 +49,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --reload"
 
   worker:
     image: dental-bot-api:dev

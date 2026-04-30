@@ -9,8 +9,9 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine, async_engine_from_config
 
 from app.core.config import get_settings
-from app.models import *  # noqa: F403
 from app.models.base import Base
+
+__import__("app.models")
 
 config = context.config
 settings = get_settings()
@@ -43,7 +44,7 @@ def do_run_migrations(connection: Connection) -> None:
         context.run_migrations()
 
 
-async def run_migrations_online() -> None:
+async def run_async_migrations() -> None:
     connectable: AsyncEngine = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
@@ -59,4 +60,4 @@ async def run_migrations_online() -> None:
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_migrations_online())
+    asyncio.run(run_async_migrations())

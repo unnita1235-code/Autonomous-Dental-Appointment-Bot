@@ -30,6 +30,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check required secrets
+        run: |
+          [[ -z "${{ secrets.VERCEL_TOKEN }}" ]] && echo "::error::Secret VERCEL_TOKEN is missing" && exit 1
+          [[ -z "${{ secrets.VERCEL_ORG_ID }}" ]] && echo "::error::Secret VERCEL_ORG_ID is missing" && exit 1
+          [[ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]] && echo "::error::Secret VERCEL_PROJECT_ID is missing" && exit 1
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -39,8 +45,18 @@ jobs:
       - name: Install
         run: npm ci --legacy-peer-deps
 
-      - name: Verify production build
-        run: npm run build
+      - name: Pull Vercel project settings
+        run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Deploy to Vercel
-        run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build Vercel artifact
+        run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy prebuilt artifact to Vercel
+        id: vercel_deploy
+        run: |
+          deployment_url="$(npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})"
+          echo "deployment_url=${deployment_url}" >> "$GITHUB_OUTPUT"
+
+      - name: Vercel deployment output
+        if: always()
+        run: 'echo "Vercel deployment URL: ${{ steps.vercel_deploy.outputs.deployment_url }}"'
