@@ -17,7 +17,7 @@ class ResponseEnvelope(BaseModel, Generic[T]):
     error: str | None = None
     meta: dict[str, Any] | None = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     @classmethod
     def success_response(

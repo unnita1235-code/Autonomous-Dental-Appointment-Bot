@@ -21,12 +21,11 @@ class Settings(BaseSettings):
     secret_key: str = Field(default="change-me")
     access_token_expire_minutes: int = Field(default=60)
 
-    database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@postgres:5432/dental_bot"
-    )
-    redis_url: str = Field(default="redis://redis:6379/0")
-    celery_broker_url: str = Field(default="redis://redis:6379/1")
-    celery_result_backend: str = Field(default="redis://redis:6379/2")
+    database_url: str = Field(default="sqlite+aiosqlite:///./dev.db")
+    redis_url: str = Field(default="redis://localhost:6379/0")
+    celery_broker_url: str = Field(default="redis://localhost:6379/1")
+    celery_result_backend: str = Field(default="redis://localhost:6379/2")
+    frontend_base_url: str = Field(default="http://localhost:3000")
 
     anthropic_api_key: str | None = Field(default=None)
     deepgram_api_key: str | None = Field(default=None)

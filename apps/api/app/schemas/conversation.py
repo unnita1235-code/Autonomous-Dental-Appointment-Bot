@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, TypedDict
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing_extensions import TypedDict
 
 from app.models.conversation import ConversationChannel, ConversationStatus
 from app.models.conversation_turn import ConversationRole

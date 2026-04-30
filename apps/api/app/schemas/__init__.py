@@ -1,5 +1,6 @@
 """Pydantic schemas package."""
 
+from app.schemas.common import ErrorResponse, PaginatedResponse, ResponseEnvelope, SuccessResponse
 from app.schemas.appointment import (
     AppointmentBrief,
     AppointmentCreate,
@@ -11,7 +12,6 @@ from app.schemas.appointment import (
     TimeSlotBrief,
 )
 from app.schemas.auth import LoginRequest, StaffUserCreate, StaffUserResponse, TokenResponse
-from app.schemas.common import ErrorResponse, PaginatedResponse, ResponseEnvelope, SuccessResponse
 from app.schemas.conversation import (
     ConversationContext,
     ConversationCreate,
@@ -22,6 +22,8 @@ from app.schemas.conversation import (
 from app.schemas.notification import NotificationCreate, NotificationResponse
 from app.schemas.patient import PatientBrief, PatientCreate, PatientResponse, PatientUpdate
 from app.schemas.slot import AvailableSlotGroup, AvailableSlotsRequest, AvailableSlotsResponse, TimeSlotResponse
+
+ResponseEnvelope.model_rebuild()
 
 __all__ = [
     "AppointmentBrief",

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
@@ -13,6 +14,9 @@ from app.core.database import create_all_tables
 from app.core.rate_limit import limiter
 from app.core.redis import close_redis, init_redis
 from app.core.socketio import setup_socketio_app
+from app.schemas import ResponseEnvelope
+
+logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
@@ -20,7 +24,16 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     await create_all_tables()
-    await init_redis()
+    import app.schemas  # noqa: F401
+
+    ResponseEnvelope.model_rebuild(force=True)
+    redis_ready = True
+    try:
+        await init_redis()
+    except Exception as exc:  # pragma: no cover - resilience path
+        redis_ready = False
+        logger.warning("Redis initialization failed; continuing without Redis: %s", exc)
+    fastapi_app.state.redis_ready = redis_ready
     try:
         yield
     finally:

@@ -2,6 +2,7 @@
 const clinicLogoDomain = process.env.NEXT_PUBLIC_CLINIC_LOGO_DOMAIN ?? "localhost";
 
 const nextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   env: {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
@@ -19,8 +20,8 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: clinicLogoDomain },
-      { protocol: "http", hostname: clinicLogoDomain }
+      { protocol: "https", hostname: clinicLogoDomain, pathname: "/**" },
+      { protocol: "http", hostname: "localhost", pathname: "/**" }
     ]
   }
 };
