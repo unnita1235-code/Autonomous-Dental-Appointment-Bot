@@ -28,6 +28,25 @@ class Settings(BaseSettings):
     celery_broker_url: str = Field(default="redis://redis:6379/1")
     celery_result_backend: str = Field(default="redis://redis:6379/2")
 
+    anthropic_api_key: str | None = Field(default=None)
+    deepgram_api_key: str | None = Field(default=None)
+    pinecone_api_key: str | None = Field(default=None)
+    pinecone_environment: str | None = Field(default=None)
+
+    twilio_account_sid: str | None = Field(default=None)
+    twilio_auth_token: str | None = Field(default=None)
+    twilio_phone_number: str | None = Field(default=None)
+
+    sendgrid_api_key: str | None = Field(default=None)
+    sendgrid_from_email: str | None = Field(default=None)
+
+    stripe_secret_key: str | None = Field(default=None)
+    stripe_webhook_secret: str | None = Field(default=None)
+
+    google_client_id: str | None = Field(default=None)
+    google_client_secret: str | None = Field(default=None)
+    google_redirect_uri: str | None = Field(default=None)
+
 
 @lru_cache
 def get_settings() -> Settings:

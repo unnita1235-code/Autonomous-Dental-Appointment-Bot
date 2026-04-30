@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const clinicLogoDomain = process.env.NEXT_PUBLIC_CLINIC_LOGO_DOMAIN ?? "localhost";
+
 const nextConfig = {
   reactStrictMode: true,
   env: {
@@ -16,7 +18,10 @@ const nextConfig = {
     ];
   },
   images: {
-    domains: [process.env.NEXT_PUBLIC_CLINIC_LOGO_DOMAIN ?? "localhost"]
+    remotePatterns: [
+      { protocol: "https", hostname: clinicLogoDomain },
+      { protocol: "http", hostname: clinicLogoDomain }
+    ]
   }
 };
 

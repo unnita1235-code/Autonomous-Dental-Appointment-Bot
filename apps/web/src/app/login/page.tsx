@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { parseJsonResponse } from "@/lib/http";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid clinic email."),
@@ -42,9 +43,9 @@ export default function LoginPage(): JSX.Element {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(validation.data)
     });
-    const data = (await response.json()) as { success: boolean; error?: string };
-    if (!response.ok || !data.success) {
-      setSubmitError(data.error ?? "Login failed. Please check your credentials.");
+    const data = await parseJsonResponse<{ success: boolean; error?: string }>(response);
+    if (!response.ok || !data?.success) {
+      setSubmitError(data?.error ?? "Login failed. Please check your credentials.");
       return;
     }
     const redirect =

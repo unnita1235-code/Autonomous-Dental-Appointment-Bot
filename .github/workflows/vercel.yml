@@ -1,0 +1,46 @@
+# Primary production deploy for the web app (Cloudflare CI is paused).
+# GitHub → Settings → Secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# (token: https://vercel.com/account/tokens ; org/project IDs from
+# `npx vercel link` in apps/web or Vercel project settings.)
+#
+# Vercel dashboard: Root Directory = apps/web. Set NEXT_PUBLIC_* and API_URL
+# to match your backend (same defaults as in env: below).
+
+name: Deploy Web to Vercel
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://dental-bot-web.unnita1235.workers.dev' }}
+      NEXT_PUBLIC_SOCKET_URL: ${{ vars.NEXT_PUBLIC_SOCKET_URL || 'https://dental-bot-web.unnita1235.workers.dev' }}
+      NEXT_PUBLIC_CLINIC_LOGO_DOMAIN: ${{ vars.NEXT_PUBLIC_CLINIC_LOGO_DOMAIN || 'localhost' }}
+      API_URL: ${{ vars.API_URL || 'https://dental-bot-web.unnita1235.workers.dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install
+        run: npm ci --legacy-peer-deps
+
+      - name: Verify production build
+        run: npm run build
+
+      - name: Deploy to Vercel
+        run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}

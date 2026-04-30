@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 
+import { parseJsonResponse } from "@/lib/http";
 import { useStaffDashboardStore } from "@/store/useStaffDashboardStore";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:8000";
@@ -22,11 +23,11 @@ export const useStaffSocket = (): UseStaffSocketResult => {
     let isMounted = true;
     const init = async (): Promise<void> => {
       const tokenResponse = await fetch("/api/auth/socket-token", { cache: "no-store" });
-      const tokenPayload = (await tokenResponse.json()) as {
+      const tokenPayload = await parseJsonResponse<{
         success: boolean;
         data?: { token: string };
-      };
-      if (!tokenResponse.ok || !tokenPayload.success || !tokenPayload.data?.token) {
+      }>(tokenResponse);
+      if (!tokenResponse.ok || !tokenPayload?.success || !tokenPayload.data?.token) {
         return;
       }
       const token = tokenPayload.data.token;

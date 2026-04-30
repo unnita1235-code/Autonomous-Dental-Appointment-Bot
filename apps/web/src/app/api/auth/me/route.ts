@@ -21,7 +21,16 @@ export async function GET(): Promise<NextResponse> {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store"
   });
-  const envelope = (await response.json()) as ApiEnvelope<Record<string, unknown>>;
+  const raw = await response.text();
+  let envelope: ApiEnvelope<Record<string, unknown>>;
+  try {
+    envelope = JSON.parse(raw) as ApiEnvelope<Record<string, unknown>>;
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "Authentication service returned an invalid response." },
+      { status: 502 }
+    );
+  }
   if (!response.ok || !envelope.success) {
     return NextResponse.json(
       { success: false, error: envelope.error ?? "Unauthorized" },

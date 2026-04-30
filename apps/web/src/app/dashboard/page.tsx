@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { format } from "date-fns";
 import { CalendarCheck2, Clock3, MessageCircleMore, ShieldCheck } from "lucide-react";
 
-import { API_BASE_URL } from "@/lib/api";
+import { parseJsonResponse } from "@/lib/http";
 import { useStaffDashboardStore } from "@/store/useStaffDashboardStore";
 import type { Appointment, Conversation } from "@/types";
 
@@ -47,16 +47,16 @@ export default function DashboardOverviewPage(): JSX.Element {
   useEffect(() => {
     const loadData = async (): Promise<void> => {
       const [appointmentRes, conversationRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/v1/appointments`, { cache: "no-store" }),
-        fetch(`${API_BASE_URL}/api/v1/conversations?limit=50`, { cache: "no-store" })
+        fetch("/staff-api/appointments", { cache: "no-store" }),
+        fetch("/staff-api/conversations?limit=50", { cache: "no-store" })
       ]);
-      const appointmentPayload = (await appointmentRes.json()) as ApiEnvelope<Appointment[]>;
-      const conversationPayload = (await conversationRes.json()) as ApiEnvelope<Conversation[]>;
+      const appointmentPayload = await parseJsonResponse<ApiEnvelope<Appointment[]>>(appointmentRes);
+      const conversationPayload = await parseJsonResponse<ApiEnvelope<Conversation[]>>(conversationRes);
 
-      if (appointmentPayload.success && appointmentPayload.data) {
+      if (appointmentPayload?.success && appointmentPayload.data) {
         setAppointments(appointmentPayload.data);
       }
-      if (conversationPayload.success && conversationPayload.data) {
+      if (conversationPayload?.success && conversationPayload.data) {
         setConversations(conversationPayload.data);
       }
     };

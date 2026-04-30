@@ -13,8 +13,9 @@ from sqlalchemy.orm import selectinload
 
 from app.api.v1.routes.deps import get_current_staff_user
 from app.core.database import get_db
+from app.core.redis import get_redis
 from app.models.conversation import Conversation, ConversationChannel, ConversationStatus
-from app.models.conversation_turn import ConversationTurn
+from app.models.conversation_turn import ConversationRole, ConversationTurn
 from app.models.staff_user import StaffUser
 from app.core.socketio import emit_staff_room_event
 from app.schemas.common import ResponseEnvelope
@@ -24,6 +25,9 @@ from app.schemas.conversation import (
     TurnCreate,
     TurnResponse,
 )
+from app.services.agent_service import AgentService
+from app.ai.schemas import AgentMessage
+from redis.asyncio import Redis
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -85,18 +89,71 @@ async def add_turn(
     conversation_id: UUID,
     payload: TurnCreate,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ) -> ResponseEnvelope[TurnResponse]:
     if payload.conversation_id != conversation_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="conversation_id mismatch.")
 
-    conversation_result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
-    if conversation_result.scalar_one_or_none() is None:
+    conversation_result = await db.execute(
+        select(Conversation)
+        .where(Conversation.id == conversation_id)
+        .options(selectinload(Conversation.turns))
+    )
+    conversation = conversation_result.scalar_one_or_none()
+    if conversation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")
 
+    # 1. Save the incoming turn
     turn = ConversationTurn(**payload.model_dump())
     db.add(turn)
     await db.commit()
     await db.refresh(turn)
+
+    # 2. Trigger AI Agent if conversation is ACTIVE
+    if conversation.status == ConversationStatus.ACTIVE and payload.role == ConversationRole.PATIENT:
+        agent_service = AgentService(db, redis)
+        
+        # Prepare history for the agent
+        history = [
+            AgentMessage(role="user" if t.role == ConversationRole.PATIENT else "assistant", content=t.content)
+            for t in conversation.turns
+        ]
+        # Include the current turn
+        history.append(AgentMessage(role="user", content=turn.content))
+
+        agent_response = await agent_service.handle_turn(
+            history=history,
+            session_id=conversation.session_id,
+            patient_id=conversation.patient_id,
+            conversation_id=conversation_id,
+        )
+
+        # Save assistant turn
+        assistant_turn = ConversationTurn(
+            conversation_id=conversation_id,
+            role=ConversationRole.ASSISTANT,
+            content=agent_response.content,
+            turn_index=turn.turn_index + 1,
+            entities_extracted=agent_response.tool_calls[0].arguments if agent_response.tool_calls else None,
+        )
+        db.add(assistant_turn)
+        await db.commit()
+        await db.refresh(assistant_turn)
+        
+        # Emit event for new assistant turn
+        clinic_id = str(conversation.context.get("clinic_id", "default"))
+        await emit_staff_room_event(
+            clinic_id=clinic_id,
+            event="new_turn",
+            payload={
+                "conversation_id": str(conversation_id),
+                "turn": TurnResponse.model_validate(assistant_turn).model_dump(),
+            },
+        )
+        
+        # We return the assistant turn as the response to indicate the AI has spoken
+        return ResponseEnvelope.success_response(data=TurnResponse.model_validate(assistant_turn))
+
     return ResponseEnvelope.success_response(data=TurnResponse.model_validate(turn))
 
 

@@ -28,7 +28,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-  const envelope = (await response.json()) as ApiEnvelope<LoginData>;
+  const raw = await response.text();
+  let envelope: ApiEnvelope<LoginData>;
+  try {
+    envelope = JSON.parse(raw) as ApiEnvelope<LoginData>;
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "Authentication service returned an invalid response." },
+      { status: 502 }
+    );
+  }
   if (!response.ok || !envelope.success || !envelope.data) {
     return NextResponse.json(
       { success: false, error: envelope.error ?? "Unable to log in." },

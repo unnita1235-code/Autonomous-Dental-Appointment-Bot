@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { API_BASE_URL } from "@/lib/api";
+import { parseJsonResponse } from "@/lib/http";
 import type { Appointment, Patient } from "@/types";
 
 type SortKey = "start_time" | "status" | "service";
@@ -52,9 +52,9 @@ const channelIcon = (channel: string): JSX.Element => {
 };
 
 const fetchPatientName = async (patientId: string): Promise<string> => {
-  const response = await fetch(`${API_BASE_URL}/api/v1/patients/${patientId}`, { cache: "no-store" });
-  const payload = (await response.json()) as ApiEnvelope<Patient>;
-  if (!response.ok || !payload.success || !payload.data) {
+  const response = await fetch(`/staff-api/patients/${patientId}`, { cache: "no-store" });
+  const payload = await parseJsonResponse<ApiEnvelope<Patient>>(response);
+  if (!response.ok || !payload?.success || !payload.data) {
     return `Patient ${patientId.slice(0, 8)}`;
   }
   return `${payload.data.first_name} ${payload.data.last_name}`;
@@ -83,11 +83,11 @@ export default function AppointmentsPage(): JSX.Element {
       if (status) params.set("status", status);
       if (dentistId) params.set("dentist_id", dentistId);
 
-      const response = await fetch(`${API_BASE_URL}/api/v1/appointments?${params.toString()}`, {
+      const response = await fetch(`/staff-api/appointments?${params.toString()}`, {
         cache: "no-store"
       });
-      const payload = (await response.json()) as ApiEnvelope<Appointment[]>;
-      if (!response.ok || !payload.success || !payload.data) {
+      const payload = await parseJsonResponse<ApiEnvelope<Appointment[]>>(response);
+      if (!response.ok || !payload?.success || !payload.data) {
         return;
       }
       setAppointments(payload.data);
@@ -132,7 +132,7 @@ export default function AppointmentsPage(): JSX.Element {
   };
 
   const updateStatus = async (appointmentId: string, nextStatus: "CANCELLED" | "CONFIRMED"): Promise<void> => {
-    await fetch(`${API_BASE_URL}/api/v1/appointments/${appointmentId}/status`, {
+    const response = await fetch(`/staff-api/appointments/${appointmentId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -140,6 +140,9 @@ export default function AppointmentsPage(): JSX.Element {
         cancellation_reason: nextStatus === "CANCELLED" ? "Cancelled by staff dashboard" : null
       })
     });
+    if (!response.ok) {
+      return;
+    }
     setAppointments((items) =>
       items.map((item) => (item.id === appointmentId ? { ...item, status: nextStatus } : item))
     );

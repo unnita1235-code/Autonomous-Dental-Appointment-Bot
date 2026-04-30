@@ -1,10 +1,11 @@
-name: Deploy Web To Cloudflare Pages
+# PAUSED: Cloudflare Pages no longer deploys on push/PR. Production uses Vercel
+# (.github/workflows/vercel.yml). Run this workflow manually from the Actions tab
+# only if you need a one-off Cloudflare deploy.
+
+name: Deploy Web To Cloudflare Pages (manual only)
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -39,7 +40,7 @@ jobs:
           cp .open-next/worker.js .open-next/_worker.js
 
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler pages deploy .open-next --project-name autonomous-dental-appointment-bot --branch ${{ github.ref_name }} --commit-hash ${{ github.sha }} --commit-message "${{ github.event.head_commit.message || github.event.pull_request.title }}"
+        run: npx wrangler pages deploy .open-next --project-name autonomous-dental-appointment-bot --branch ${{ github.ref_name }} --commit-hash ${{ github.sha }} --commit-message "${{ github.event.head_commit.message || 'Manual Cloudflare deploy' }}"
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { useStaffSocket } from "@/hooks/useStaffSocket";
+import { parseJsonResponse } from "@/lib/http";
 import { useAppStore } from "@/store/useAppStore";
 
 interface NavItem {
@@ -53,8 +54,8 @@ export default function StaffDashboardShell({ children }: StaffDashboardShellPro
   useEffect(() => {
     const loadMe = async (): Promise<void> => {
       const response = await fetch("/api/auth/me", { cache: "no-store" });
-      const payload = (await response.json()) as { success: boolean; data?: StaffMe };
-      if (response.ok && payload.success && payload.data) {
+      const payload = await parseJsonResponse<{ success: boolean; data?: StaffMe }>(response);
+      if (response.ok && payload?.success && payload.data) {
         setMe(payload.data);
       }
     };

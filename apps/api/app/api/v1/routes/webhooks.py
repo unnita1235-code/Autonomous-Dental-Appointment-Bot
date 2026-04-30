@@ -365,10 +365,64 @@ async def twilio_whatsapp_webhook(
     return Response(content=_build_twiml_message(reply_text), media_type="application/xml")
 
 
-@router.post("/twilio/voice", status_code=status.HTTP_202_ACCEPTED)
-async def twilio_voice_webhook(request: Request) -> ResponseEnvelope[dict[str, Any]]:
-    payload = await _read_payload(request)
-    return ResponseEnvelope.success_response(data={"received": True, "channel": "voice", "payload": payload})
+@router.post("/twilio/voice")
+async def twilio_voice_webhook(
+    request: Request,
+) -> Response:
+    """Initial call entry point. Greets and gathers speech."""
+    twiml = MessagingResponse() # Actually we need VoiceResponse, but I'll use raw TwiML string or similar
+    # Twilio SDK has VoiceResponse, but it might not be imported.
+    # I'll check imports.
+    from twilio.twiml.voice_response import VoiceResponse, Gather
+    
+    response = VoiceResponse()
+    response.say("Hello! This is DentaPlan AI. How can I help you today?")
+    gather = Gather(input='speech', action='/api/v1/webhooks/twilio/voice/gather', method='POST')
+    response.append(gather)
+    # If they don't say anything
+    response.say("I'm sorry, I didn't catch that. Goodbye.")
+    
+    return Response(content=str(response), media_type="application/xml")
+
+
+@router.post("/twilio/voice/gather")
+async def twilio_voice_gather(
+    request: Request,
+    db: Any = Depends(get_db),
+) -> Response:
+    """Handle transcription results from Twilio Gather."""
+    from twilio.twiml.voice_response import VoiceResponse, Gather
+    
+    form_data = await request.form()
+    speech_result = str(form_data.get("SpeechResult", "")).strip()
+    from_number = _normalize_phone(str(form_data.get("From", "")).replace("whatsapp:", ""))
+    
+    if not speech_result:
+        response = VoiceResponse()
+        response.say("I'm sorry, I didn't hear anything. Please try again later.")
+        return Response(content=str(response), media_type="application/xml")
+
+    # Reuse the same bot processing logic as SMS
+    normalized_payload = _normalize_channel_payload(
+        session_id=from_number,
+        message_text=speech_result,
+        channel="voice",
+        from_number=from_number,
+        raw_payload=dict(form_data),
+    )
+    
+    bot_response = await _process_bot_message(db=db, normalized_payload=normalized_payload)
+    reply_text = bot_response.get("message", "I'm sorry, I encountered an error.")
+    
+    response = VoiceResponse()
+    response.say(reply_text)
+    
+    # If not escalating or closing, gather more speech
+    if bot_response.get("status") != "closed":
+        gather = Gather(input='speech', action='/api/v1/webhooks/twilio/voice/gather', method='POST')
+        response.append(gather)
+    
+    return Response(content=str(response), media_type="application/xml")
 
 
 @router.post("/stripe", status_code=status.HTTP_200_OK)

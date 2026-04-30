@@ -39,6 +39,7 @@ services:
     working_dir: /app
     env_file:
       - .env
+    restart: always
     ports:
       - "8000:8000"
     volumes:
@@ -56,6 +57,7 @@ services:
     working_dir: /app
     env_file:
       - .env
+    restart: always
     volumes:
       - ./apps/api:/app
     depends_on:
@@ -69,6 +71,7 @@ services:
     working_dir: /app
     env_file:
       - .env
+    restart: always
     ports:
       - "5555:5555"
     volumes:
@@ -76,7 +79,7 @@ services:
     depends_on:
       worker:
         condition: service_started
-    command: celery -A app.workers.celery_app flower --port=5555
+    command: celery -A app.workers.celery_app flower --port=5555 --basic_auth=${CELERY_FLOWER_USER:-admin}:${CELERY_FLOWER_PASSWORD:-admin}
 
 volumes:
   postgres_data:
