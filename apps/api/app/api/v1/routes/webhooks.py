@@ -429,7 +429,7 @@ async def twilio_voice_gather(
 async def stripe_webhook(
     request: Request,
     background_tasks: BackgroundTasks,
-) -> ResponseEnvelope[dict[str, Any]]:
+) -> "ResponseEnvelope[dict[str, Any]]":
     payload = await request.body()
     event = _validate_stripe_request(request, payload)
     background_tasks.add_task(_process_stripe_event, event)

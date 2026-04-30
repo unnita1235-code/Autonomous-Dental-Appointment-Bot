@@ -70,3 +70,5 @@ __all__ = [
     "ResponseEnvelope",
     "SuccessResponse",
 ]
+
+ResponseEnvelope.model_rebuild()

@@ -48,7 +48,7 @@ class HandoffRequest(BaseModel):
 async def create_conversation(
     payload: ConversationCreate,
     db: AsyncSession = Depends(get_db),
-) -> ResponseEnvelope[ConversationResponse]:
+) -> "ResponseEnvelope[ConversationResponse]":
     conversation = Conversation(**payload.model_dump(exclude_none=True))
     db.add(conversation)
     await db.commit()
@@ -71,7 +71,7 @@ async def create_conversation(
 async def get_conversation(
     conversation_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> ResponseEnvelope[ConversationResponse]:
+) -> "ResponseEnvelope[ConversationResponse]":
     stmt = (
         select(Conversation)
         .where(Conversation.id == conversation_id)
@@ -90,7 +90,7 @@ async def add_turn(
     payload: TurnCreate,
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
-) -> ResponseEnvelope[TurnResponse]:
+) -> "ResponseEnvelope[TurnResponse]":
     if payload.conversation_id != conversation_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="conversation_id mismatch.")
 
@@ -162,7 +162,7 @@ async def update_conversation_status(
     conversation_id: UUID,
     payload: ConversationStatusUpdateRequest,
     db: AsyncSession = Depends(get_db),
-) -> ResponseEnvelope[ConversationResponse]:
+) -> "ResponseEnvelope[ConversationResponse]":
     result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     if conversation is None:
@@ -185,7 +185,7 @@ async def list_conversations(
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
     _: StaffUser = Depends(get_current_staff_user),
-) -> ResponseEnvelope[list[ConversationResponse]]:
+) -> "ResponseEnvelope[list[ConversationResponse]]":
     stmt = select(Conversation).order_by(Conversation.created_at.desc()).offset(offset).limit(limit)
     if status_filter is not None:
         stmt = stmt.where(Conversation.status == status_filter)
@@ -205,7 +205,7 @@ async def handoff_conversation(
     payload: HandoffRequest,
     db: AsyncSession = Depends(get_db),
     current_user: StaffUser = Depends(get_current_staff_user),
-) -> ResponseEnvelope[ConversationResponse]:
+) -> "ResponseEnvelope[ConversationResponse]":
     result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     if conversation is None:
