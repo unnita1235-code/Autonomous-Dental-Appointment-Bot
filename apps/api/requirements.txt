@@ -14,7 +14,7 @@ pinecone-client==3.2.2
 twilio==9.0.4
 sendgrid==6.11.0
 stripe==9.6.0
-google-api-python-client==2.127.0
+google-api-python-client==2.198.0
 google-auth==2.29.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
