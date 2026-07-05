@@ -28,7 +28,7 @@ jobs:
       NEXT_PUBLIC_CLINIC_LOGO_DOMAIN: ${{ vars.NEXT_PUBLIC_CLINIC_LOGO_DOMAIN || 'localhost' }}
       API_URL: ${{ vars.API_URL || 'https://dental-bot-web.unnita1235.workers.dev' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check required secrets
         run: |
