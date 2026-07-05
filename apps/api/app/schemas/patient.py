@@ -1,6 +1,5 @@
 """Patient domain schemas."""
 
-from __future__ import annotations
 
 import re
 from datetime import date, datetime
@@ -28,7 +27,28 @@ class PatientCreate(BaseModel):
     notes: str | None = None
     is_active: bool = True
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "first_name": "Jane",
+                    "last_name": "Doe",
+                    "email": "jane.doe@example.com",
+                    "phone": "+12025551234",
+                    "date_of_birth": "1990-05-15",
+                    "gender": "female",
+                    "insurance_provider": "Delta Dental",
+                    "insurance_member_id": "DD987654321",
+                    "is_returning": False,
+                    "requires_deposit": False,
+                    "channel_preference": "web",
+                    "notes": "Prefers morning appointments.",
+                    "is_active": True,
+                }
+            ]
+        },
+    )
 
     @field_validator("email", mode="before")
     @classmethod
@@ -59,7 +79,28 @@ class PatientUpdate(BaseModel):
     notes: str | None = None
     is_active: bool | None = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "first_name": "Jane",
+                    "last_name": "Smith",
+                    "email": "jane.smith@example.com",
+                    "phone": "+12025556789",
+                    "date_of_birth": "1990-05-15",
+                    "gender": "female",
+                    "insurance_provider": "Cigna Dental",
+                    "insurance_member_id": "CD123456789",
+                    "is_returning": True,
+                    "requires_deposit": False,
+                    "channel_preference": "sms",
+                    "notes": "Updated phone number.",
+                    "is_active": True,
+                }
+            ]
+        },
+    )
 
     @field_validator("email", mode="before")
     @classmethod
@@ -98,7 +139,32 @@ class PatientResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    "first_name": "Jane",
+                    "last_name": "Doe",
+                    "email": "jane.doe@example.com",
+                    "phone": "+12025551234",
+                    "date_of_birth": "1990-05-15",
+                    "gender": "female",
+                    "insurance_provider": "Delta Dental",
+                    "insurance_member_id": "DD987654321",
+                    "is_returning": False,
+                    "no_show_count": 0,
+                    "requires_deposit": False,
+                    "channel_preference": "web",
+                    "notes": "Prefers morning appointments.",
+                    "is_active": True,
+                    "created_at": "2025-06-10T08:30:00Z",
+                    "updated_at": "2025-06-10T08:30:00Z",
+                }
+            ]
+        },
+    )
 
     @field_validator("email", mode="before")
     @classmethod

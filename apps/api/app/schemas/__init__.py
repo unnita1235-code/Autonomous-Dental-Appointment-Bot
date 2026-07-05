@@ -1,6 +1,6 @@
 """Pydantic schemas package."""
 
-from app.schemas.common import ErrorResponse, PaginatedResponse, ResponseEnvelope, SuccessResponse
+from app.schemas.common import ResponseEnvelope
 from app.schemas.appointment import (
     AppointmentBrief,
     AppointmentCreate,

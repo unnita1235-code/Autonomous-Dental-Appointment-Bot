@@ -1,11 +1,10 @@
 """Appointment routes."""
 
-from __future__ import annotations
 
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,8 +12,9 @@ from sqlalchemy.orm import selectinload
 
 from app.api.v1.routes.deps import get_current_staff_user
 from app.core.database import get_db
+from app.core.rate_limit import limiter
 from app.core.redis import get_redis
-from app.models.appointment import Appointment, AppointmentSourceChannel, AppointmentStatus
+from app.models.appointment import Appointment, AppointmentStatus
 from app.models.audit_log import PerformedByType
 from app.models.staff_user import StaffUser
 from app.schemas.appointment import (
@@ -36,19 +36,19 @@ router = APIRouter(prefix="/appointments", tags=["appointments"])
 
 class CancelRequest(BaseModel):
     reason: str
-
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={"examples": [{"reason": "Patient requested to reschedule"}]})
 
 
 class RescheduleRequest(BaseModel):
     new_slot_id: UUID
     reason: str | None = None
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={"examples": [{"new_slot_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "reason": "Patient prefers morning"}]})
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, summary="Create Appointment", description="Books a new appointment for a patient with a specific dentist, service, and time slot. Uses slot locking to prevent double-booking and enforces clinic booking policies.", response_description="Created appointment details")
+@limiter.limit("30/minute")
 async def create_appointment(
+    request: Request,
     payload: AppointmentCreate,
     session_id: str = Query(..., min_length=1),
     db: AsyncSession = Depends(get_db),
@@ -75,8 +75,10 @@ async def create_appointment(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
-@router.get("/{appointment_id}")
+@router.get("/{appointment_id}", summary="Get Appointment", description="Retrieves a single appointment by its unique identifier, including related patient, dentist, service, and time slot information.", response_description="Appointment details")
+@limiter.limit("10/minute")
 async def get_appointment(
+    request: Request,
     appointment_id: UUID,
     db: AsyncSession = Depends(get_db),
 ) -> ResponseEnvelope[AppointmentResponse]:
@@ -97,12 +99,15 @@ async def get_appointment(
     return ResponseEnvelope.success_response(data=AppointmentResponse.model_validate(appointment))
 
 
-@router.get("")
+@router.get("", summary="List Appointments", description="Returns a paginated list of appointments with optional filtering by date range, status, dentist, or patient. Results are ordered by start time ascending.", response_description="Paginated list of appointments with metadata")
+@limiter.limit("10/minute")
 async def list_appointments(
+    request: Request,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
     status_filter: AppointmentStatus | None = Query(default=None, alias="status"),
     dentist_id: UUID | None = None,
+    patient_id: UUID | None = None,
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -116,6 +121,8 @@ async def list_appointments(
         conditions.append(Appointment.status == status_filter)
     if dentist_id is not None:
         conditions.append(Appointment.dentist_id == dentist_id)
+    if patient_id is not None:
+        conditions.append(Appointment.patient_id == patient_id)
 
     count_stmt = select(func.count(Appointment.id))
     if conditions:
@@ -145,8 +152,10 @@ async def list_appointments(
     )
 
 
-@router.patch("/{appointment_id}/status")
+@router.patch("/{appointment_id}/status", summary="Update Appointment Status", description="Updates the status of an existing appointment (e.g., confirm, complete, cancel). Optionally records a cancellation reason when cancelling.", response_description="Updated appointment details")
+@limiter.limit("10/minute")
 async def update_appointment_status(
+    request: Request,
     appointment_id: UUID,
     payload: AppointmentStatusUpdate,
     db: AsyncSession = Depends(get_db),
@@ -177,8 +186,10 @@ async def update_appointment_status(
     return ResponseEnvelope.success_response(data=AppointmentResponse.model_validate(full_appointment))
 
 
-@router.post("/{appointment_id}/cancel")
+@router.post("/{appointment_id}/cancel", summary="Cancel Appointment", description="Cancels an existing appointment with a required reason. Uses the AppointmentService to enforce clinic cancellation policies.", response_description="Cancelled appointment details")
+@limiter.limit("10/minute")
 async def cancel_appointment(
+    request: Request,
     appointment_id: UUID,
     payload: CancelRequest,
     db: AsyncSession = Depends(get_db),
@@ -198,8 +209,10 @@ async def cancel_appointment(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
-@router.post("/{appointment_id}/reschedule")
+@router.post("/{appointment_id}/reschedule", summary="Reschedule Appointment", description="Moves an existing appointment to a new time slot. The new slot is locked during the operation to prevent double-booking conflicts.", response_description="Rescheduled appointment details")
+@limiter.limit("10/minute")
 async def reschedule_appointment(
+    request: Request,
     appointment_id: UUID,
     payload: RescheduleRequest,
     session_id: str = Query(..., min_length=1),

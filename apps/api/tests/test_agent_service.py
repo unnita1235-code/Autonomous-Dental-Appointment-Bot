@@ -1,7 +1,5 @@
 import pytest
-import json
 from unittest.mock import AsyncMock, patch
-from uuid import uuid4
 from app.services.agent_service import AgentService
 from app.ai.schemas import AgentMessage, AgentToolCall, AgentResponse
 

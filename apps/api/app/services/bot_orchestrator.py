@@ -1,6 +1,5 @@
 """Chatbot orchestration service for realtime messaging."""
 
-from __future__ import annotations
 
 from datetime import datetime, timezone
 from time import perf_counter

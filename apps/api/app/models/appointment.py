@@ -96,6 +96,9 @@ class Appointment(TimestampMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     reminder_24h_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     reminder_2h_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    google_calendar_event_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    calendar_sync_failed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    stripe_refund_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     patient: Mapped["Patient"] = relationship("Patient", back_populates="appointments")
     dentist: Mapped["Dentist"] = relationship("Dentist", back_populates="appointments")

@@ -1,22 +1,21 @@
-"""Socket.IO realtime infrastructure."""
-
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import parse_qs
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import socketio
 from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.core.database import AsyncSessionFactory
-from app.core.redis import get_json, redis_client, set_with_ttl
+from app.core.metrics import ACTIVE_CONNECTIONS
+from app.core.redis import redis_client
 from app.core.security import decode_access_token
 from app.models.appointment import AppointmentSourceChannel
-from app.models.conversation import Conversation, ConversationChannel, ConversationStatus
+from app.models.conversation import Conversation, ConversationChannel
 from app.models.patient import Patient
 from app.models.staff_user import StaffUser
 from app.schemas.appointment import AppointmentResponse
@@ -26,7 +25,7 @@ from app.services.appointment_service import (
     SlotLockError,
     SlotUnavailableError,
 )
-from app.services.bot_orchestrator import BotOrchestrator
+from app.services.conversation_service import ConversationOrchestrationService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -42,7 +41,6 @@ socket_app: socketio.ASGIApp | None = None
 
 
 def setup_socketio_app(fastapi_app: Any) -> socketio.ASGIApp:
-    """Mount Socket.IO while preserving FastAPI HTTP routing."""
     global socket_app
     socket_app = socketio.ASGIApp(socketio_server=sio, other_asgi_app=fastapi_app)
     return socket_app
@@ -76,58 +74,6 @@ def _to_conversation_channel(channel: str) -> ConversationChannel:
         return ConversationChannel.WEB
 
 
-async def _get_or_create_conversation(
-    session_id: str, channel: str
-) -> tuple[Conversation, bool]:
-    cache_key = f"conversation_session:{session_id}"
-    cached = await get_json(cache_key)
-
-    async with AsyncSessionFactory() as db:
-        if isinstance(cached, dict) and cached.get("conversation_id"):
-            conversation_id = cached["conversation_id"]
-            stmt = select(Conversation).where(Conversation.id == UUID(str(conversation_id)))
-            existing = (await db.execute(stmt)).scalar_one_or_none()
-            if existing is not None:
-                return existing, False
-
-        stmt = select(Conversation).where(Conversation.session_id == session_id)
-        existing = (await db.execute(stmt)).scalar_one_or_none()
-        if existing is not None:
-            await set_with_ttl(
-                cache_key,
-                {
-                    "conversation_id": str(existing.id),
-                    "session_id": session_id,
-                    "last_seen": datetime.now(timezone.utc).isoformat(),
-                },
-                ttl_seconds=24 * 60 * 60,
-            )
-            return existing, False
-
-        conversation = Conversation(
-            session_id=session_id,
-            channel=_to_conversation_channel(channel),
-            status=ConversationStatus.ACTIVE,
-            context={"last_seen": datetime.now(timezone.utc).isoformat()},
-            intent_history=[],
-            started_at=datetime.now(timezone.utc),
-        )
-        db.add(conversation)
-        await db.commit()
-        await db.refresh(conversation)
-
-    await set_with_ttl(
-        cache_key,
-        {
-            "conversation_id": str(conversation.id),
-            "session_id": session_id,
-            "last_seen": datetime.now(timezone.utc).isoformat(),
-        },
-        ttl_seconds=24 * 60 * 60,
-    )
-    return conversation, True
-
-
 async def emit_staff_room_event(clinic_id: str, event: str, payload: dict[str, Any]) -> None:
     room = f"staff_{clinic_id}"
     await sio.emit(event, payload, room=room)
@@ -135,23 +81,28 @@ async def emit_staff_room_event(clinic_id: str, event: str, payload: dict[str, A
 
 @sio.event
 async def connect(sid: str, environ: dict[str, Any], auth: dict[str, Any] | None) -> bool:
-    session_id = _parse_session_id(environ, auth)
-    try:
-        UUID(session_id)
-    except ValueError:
-        logger.warning("Socket rejected: invalid session_id sid=%s", sid)
-        return False
-
+    ACTIVE_CONNECTIONS.inc()
+    client_session_id = _parse_session_id(environ, auth)
     channel = str((auth or {}).get("channel", "web"))
     connection_role = str((auth or {}).get("role", "patient")).strip().lower()
     staff_token = _get_auth_token(environ=environ, auth=auth)
+
+    session_id = client_session_id
     if connection_role == "staff":
         payload = decode_access_token(staff_token or "")
         if payload is None or "sub" not in payload:
             logger.warning("Socket rejected: invalid staff token sid=%s", sid)
             return False
+    else:
+        session_id = uuid4().hex
 
-    conversation, is_new = await _get_or_create_conversation(session_id=session_id, channel=channel)
+    async with AsyncSessionFactory() as db:
+        svc = ConversationOrchestrationService(db=db, redis=redis_client)
+        conversation, is_new = await svc.get_or_create(
+            session_id=session_id,
+            channel=_to_conversation_channel(channel),
+        )
+
     await sio.save_session(
         sid,
         {
@@ -181,6 +132,7 @@ async def connect(sid: str, environ: dict[str, Any], auth: dict[str, Any] | None
 
 @sio.event
 async def disconnect(sid: str) -> None:
+    ACTIVE_CONNECTIONS.dec()
     session = await sio.get_session(sid)
     if not session:
         return
@@ -218,8 +170,8 @@ async def handle_send_message(sid: str, data: dict[str, Any]) -> None:
 
     try:
         async with AsyncSessionFactory() as db:
-            orchestrator = BotOrchestrator(db=db)
-            response = await orchestrator.process_message(
+            svc = ConversationOrchestrationService(db=db, redis=redis_client)
+            response = await svc.process_with_agent(
                 conversation_id=UUID(str(session["conversation_id"])),
                 message=message,
                 channel=str(data.get("channel", session.get("channel", "web"))),
@@ -339,4 +291,8 @@ async def handle_join_staff_room(sid: str, data: dict[str, Any]) -> None:
     await sio.emit("staff_room_joined", {"room": room}, to=sid)
 
 
-__all__ = ["emit_staff_room_event", "setup_socketio_app", "sio", "socket_app"]
+async def notify_reconnect() -> None:
+    await sio.emit("server_shutdown", {"reason": "deploy", "reconnect": True})
+
+
+__all__ = ["emit_staff_room_event", "setup_socketio_app", "sio", "socket_app", "notify_reconnect"]

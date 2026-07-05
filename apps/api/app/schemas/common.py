@@ -1,7 +1,4 @@
 """Common API response schemas."""
-
-from __future__ import annotations
-
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict
@@ -17,7 +14,30 @@ class ResponseEnvelope(BaseModel, Generic[T]):
     error: str | None = None
     meta: dict[str, Any] | None = None
 
-    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        arbitrary_types_allowed=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "success": True,
+                    "data": {
+                        "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                        "patient_name": "Jane Doe",
+                        "appointment_date": "2025-06-15T10:00:00Z",
+                    },
+                    "error": None,
+                    "meta": {"page": 1, "per_page": 20, "total": 1},
+                },
+                {
+                    "success": False,
+                    "data": None,
+                    "error": "The requested appointment slot is no longer available.",
+                    "meta": None,
+                },
+            ]
+        },
+    )
 
     @classmethod
     def success_response(
@@ -61,7 +81,23 @@ class PaginatedResponse(BaseModel, Generic[T]):
     per_page: int
     pages: int
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "items": [
+                        {"id": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "name": "Cleaning"},
+                        {"id": "4fa85f64-5717-4562-b3fc-2c963f66afa7", "name": "Checkup"},
+                    ],
+                    "total": 2,
+                    "page": 1,
+                    "per_page": 20,
+                    "pages": 1,
+                }
+            ]
+        },
+    )
 
 
 __all__ = [

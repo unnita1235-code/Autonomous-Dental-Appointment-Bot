@@ -14,7 +14,6 @@ from app.core.celery_app import celery_app
 from app.core.database import AsyncSessionFactory
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.notification import Notification, NotificationStatus, NotificationType
-from app.models.patient import Patient
 from app.models.time_slot import TimeSlot
 from app.services.notification_service import NotificationService
 
@@ -66,7 +65,7 @@ async def _send_appointment_reminders_async() -> dict[str, int]:
                     continue
                 if await _has_reminder_sent(db, appointment.id, reminder_type):
                     continue
-                await service.send_reminder(appointment.id, reminder_label)  # idempotent in service as well
+                await service.send_reminder(appointment.id, reminder_label)  # type: ignore[arg-type]  # idempotent in service as well
                 sent_count += 1
 
     return {"sent": sent_count}

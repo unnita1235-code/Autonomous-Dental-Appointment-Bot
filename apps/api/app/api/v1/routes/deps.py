@@ -1,6 +1,5 @@
 """Shared API route dependencies."""
 
-from __future__ import annotations
 
 from uuid import UUID
 
@@ -58,7 +57,7 @@ async def validate_twilio_request(request: Request) -> dict[str, Any]:
     payload = {key: value for key, value in form_data.multi_items()}
 
     settings = get_settings()
-    auth_token = getattr(settings, "twilio_auth_token", "")
+    auth_token = settings.twilio_auth_token
     if not auth_token:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Twilio auth is not configured.")
 

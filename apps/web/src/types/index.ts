@@ -14,14 +14,29 @@ export type AppointmentStatus =
 
 export type AppointmentSourceChannel = "web" | "whatsapp" | "sms" | "voice" | "staff";
 export type ChannelPreference = "web" | "whatsapp" | "sms" | "voice";
-export type ConversationChannel = "web" | "whatsapp" | "sms" | "voice";
-export type ConversationStatus =
-  | "ACTIVE"
-  | "WAITING_HUMAN"
-  | "HUMAN_TAKEOVER"
-  | "COMPLETED"
-  | "ABANDONED";
-export type ConversationRole = "USER" | "ASSISTANT" | "SYSTEM" | "STAFF";
+export const ConversationChannel = {
+  WEB: "web",
+  WHATSAPP: "whatsapp",
+  SMS: "sms",
+  VOICE: "voice",
+} as const;
+export type ConversationChannel = (typeof ConversationChannel)[keyof typeof ConversationChannel];
+
+export const ConversationStatus = {
+  ACTIVE: "ACTIVE",
+  WAITING_HUMAN: "WAITING_HUMAN",
+  HUMAN_TAKEOVER: "HUMAN_TAKEOVER",
+  COMPLETED: "COMPLETED",
+  ABANDONED: "ABANDONED",
+} as const;
+export type ConversationStatus = (typeof ConversationStatus)[keyof typeof ConversationStatus];
+
+export const ConversationRole = {
+  USER: "user",
+  ASSISTANT: "assistant",
+  SYSTEM: "system",
+} as const;
+export type ConversationRole = (typeof ConversationRole)[keyof typeof ConversationRole];
 export type StaffRole = "ADMIN" | "RECEPTIONIST" | "DENTIST";
 
 export interface DentistBrief {
@@ -141,6 +156,39 @@ export interface BotResponse {
   turn: ConversationTurn;
   reply: string;
   requires_human_handoff: boolean;
+}
+
+export interface BookingsPerDay {
+  date: string;
+  count: number;
+}
+
+export interface ChannelMix {
+  channel: string;
+  count: number;
+}
+
+export interface StatusBreakdown {
+  status: string;
+  count: number;
+}
+
+export interface AnalyticsSummary {
+  total_appointments: number;
+  total_patients: number;
+  total_conversations: number;
+  pending_confirmations: number;
+  human_takeover_count: number;
+  bot_resolution_rate: number;
+  bookings_per_day: BookingsPerDay[];
+  channel_mix: ChannelMix[];
+  status_breakdown: StatusBreakdown[];
+  period_days: number;
+}
+
+export interface IntegrationStatus {
+  service: string;
+  status: string;
 }
 
 export interface StaffUser {

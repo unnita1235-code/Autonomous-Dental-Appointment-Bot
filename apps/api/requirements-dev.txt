@@ -1,0 +1,7 @@
+pytest
+pytest-asyncio
+pytest-mock
+httpx
+aiosqlite
+ruff
+mypy

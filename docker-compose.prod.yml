@@ -1,0 +1,133 @@
+# Production Docker Compose (standalone — not an override).
+#
+# Services: postgres, redis, api, worker, beat.
+# Flower is omitted (use Railway metrics or a dedicated monitoring stack).
+# The Next.js front-end is deployed separately via Vercel (see DEPLOYMENT.md).
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Secrets are injected from .env (see DEPLOYMENT.md → secrets section).
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dental-bot-postgres
+    restart: always
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dental_bot}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dental_bot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  redis:
+    image: redis:7-alpine
+    container_name: dental-bot-redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: dental-bot-api:${IMAGE_TAG:-latest}
+    container_name: dental-bot-api
+    restart: always
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    command: >
+      sh -c "
+      python -m app.core.config_check &&
+      exec gunicorn app.main:app
+        --worker-class uvicorn.workers.UvicornWorker
+        --workers ${GUNICORN_WORKERS:-4}
+        --bind 0.0.0.0:${PORT:-8000}
+        --max-requests 1200
+        --max-requests-jitter 50
+        --timeout 120
+        --keep-alive 5
+      "
+
+  worker:
+    image: dental-bot-api:${IMAGE_TAG:-latest}
+    container_name: dental-bot-worker
+    restart: always
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    command: celery -A app.workers.celery_app worker --loglevel=info --without-gossip --without-mingle --time-limit=300
+
+  beat:
+    image: dental-bot-api:${IMAGE_TAG:-latest}
+    container_name: dental-bot-beat
+    restart: always
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    command: celery -A app.workers.celery_app beat --loglevel=info
+
+volumes:
+  postgres_data:
+  redis_data:

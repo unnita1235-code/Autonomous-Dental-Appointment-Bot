@@ -7,7 +7,7 @@ from typing import Any, cast
 from anthropic import AsyncAnthropic
 
 from app.ai.prompts import SYSTEM_PROMPT
-from app.ai.schemas import AgentMessage, AgentResponse, AgentToolCall
+from app.ai.schemas import AgentResponse, AgentToolCall
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -18,7 +18,8 @@ class DentalAgent:
 
     def __init__(self) -> None:
         self.client = AsyncAnthropic(api_key=settings.anthropic_api_key)
-        self.model = "claude-3-5-sonnet-20240620"
+        # TODO: Verify this exact model ID against Anthropic's current model list before deploying
+        self.model = settings.anthropic_model
 
     async def get_response(self, messages: list[dict[str, Any]]) -> AgentResponse:
         """Call Claude with history and tool definitions."""

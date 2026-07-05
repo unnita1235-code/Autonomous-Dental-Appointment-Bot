@@ -41,7 +41,31 @@ class StripeService:
             customer_email=patient_email,
             metadata={"appointment_id": appointment_id},
         )
-        return session.url
+        return session.url  # type: ignore[return-value]
+
+    async def create_payment_intent(
+        self,
+        amount: float,
+        currency: str = "usd",
+        metadata: dict | None = None,
+    ) -> dict:
+        """Create a Stripe PaymentIntent."""
+        intent = stripe.PaymentIntent.create(
+            amount=int(amount * 100),
+            currency=currency,
+            metadata=metadata or {},
+        )
+        return intent  # type: ignore[return-value]
+
+    async def retrieve_payment_intent(self, payment_intent_id: str) -> dict:
+        """Retrieve an existing Stripe PaymentIntent."""
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+        return intent  # type: ignore[return-value]
+
+    async def cancel_payment_intent(self, payment_intent_id: str) -> dict:
+        """Cancel an existing Stripe PaymentIntent."""
+        intent = stripe.PaymentIntent.cancel(payment_intent_id)
+        return intent  # type: ignore[return-value]
 
 
 __all__ = ["StripeService"]

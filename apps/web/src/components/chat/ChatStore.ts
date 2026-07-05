@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { apiClient } from "@/lib/api";
+import { ConversationChannel, ConversationRole } from "@/types";
 
 export interface QuickReplyOption {
   id: string;
@@ -124,7 +125,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           ConversationCreateResponse,
           ConversationCreateResponse
         >("/api/v1/conversations", {
-          channel: "WEB_CHAT",
+          channel: ConversationChannel.WEB,
           session_id: sessionId,
           status: "ACTIVE",
           started_at: new Date().toISOString(),
@@ -141,13 +142,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         `/api/v1/conversations/${activeConversationId}/turns`,
         {
           conversation_id: activeConversationId,
-          role: "USER",
+          role: ConversationRole.USER,
           content: trimmed,
           turn_index: get().messages.length
         }
       );
 
-      if (userTurn.role === "ASSISTANT") {
+      if (userTurn.role === ConversationRole.ASSISTANT) {
         addMessage({
           id: userTurn.id,
           role: "bot",

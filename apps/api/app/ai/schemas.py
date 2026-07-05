@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import Any, Literal
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -17,7 +16,7 @@ class AgentToolCall(BaseModel):
 
 class AgentMessage(BaseModel):
     """Schema for a message in the conversation history."""
-    role: Literal["user", "assistant"]
+    role: Literal["user", "assistant", "system"]
     content: str
 
 

@@ -1,12 +1,11 @@
 """Appointment booking and lifecycle service."""
 
-from __future__ import annotations
 
 import asyncio
+import logging
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -26,6 +25,7 @@ from app.models.patient import Patient
 from app.models.time_slot import TimeSlot
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class SlotUnavailableError(Exception):
@@ -95,10 +95,11 @@ class AppointmentService:
                     )
                 )
 
-        result = await self.db.execute(stmt)
+        async with self.db.begin():
+            result = await self.db.execute(stmt)
         slots = result.scalars().all()
 
-        grouped: dict[datetime.date, list[TimeSlot]] = defaultdict(list)
+        grouped: dict[date, list[TimeSlot]] = defaultdict(list)
         for slot in slots:
             day = slot.start_time.date()
             if len(grouped[day]) < 3:
@@ -217,7 +218,7 @@ class AppointmentService:
             )
 
         await release_slot_lock(str(slot_id), session_id)
-        asyncio.create_task(self._create_calendar_event(appointment_id=appointment.id))
+        asyncio.create_task(AppointmentService._run_calendar_create(appointment_id=appointment.id))
 
         return await self._get_full_appointment(appointment.id)
 
@@ -251,7 +252,7 @@ class AppointmentService:
             within_24h = (appointment.start_time - now) < timedelta(hours=24)
             if within_24h:
                 # Policy applies; upstream can branch on this type.
-                policy_enforced = getattr(settings, "enforce_cancellation_policy", False)
+                policy_enforced = settings.enforce_cancellation_policy
                 if policy_enforced:
                     raise PolicyViolationError("Cancellation is inside the policy window.")
 
@@ -304,12 +305,10 @@ class AppointmentService:
             )
 
         if should_refund:
-            refund_percent = Decimal(
-                str(getattr(settings, "late_cancellation_refund_percent", "50"))
-            )
+            refund_percent = settings.late_cancellation_refund_percent
             await self._trigger_stripe_refund(appointment_id=appointment_id, refund_percent=refund_percent)
 
-        asyncio.create_task(self._cancel_calendar_event(appointment_id=appointment_id))
+        asyncio.create_task(AppointmentService._run_calendar_cancel(appointment_id=appointment_id))
         asyncio.create_task(self._send_notification(appointment_id=appointment_id, kind="cancellation"))
         return await self._get_full_appointment(appointment_id)
 
@@ -365,6 +364,7 @@ class AppointmentService:
                     old_slot.appointment_id = None
                     old_slot.locked_by = None
                     old_slot.locked_until = None
+                    await self.db.flush()
 
                 previous_state = {
                     "time_slot_id": str(appointment.time_slot_id),
@@ -414,7 +414,7 @@ class AppointmentService:
         finally:
             await release_slot_lock(str(new_slot_id), session_id)
 
-        asyncio.create_task(self._update_calendar_event(appointment_id=appointment_id))
+        asyncio.create_task(AppointmentService._run_calendar_update(appointment_id=appointment_id))
         asyncio.create_task(self._send_notification(appointment_id=appointment_id, kind="reschedule"))
         return await self._get_full_appointment(appointment_id)
 
@@ -437,42 +437,113 @@ class AppointmentService:
             )
             .order_by(Appointment.start_time.asc())
         )
-        result = await self.db.execute(stmt)
+        async with self.db.begin():
+            result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
     async def _get_full_appointment(self, appointment_id: UUID) -> Appointment:
-        stmt = (
-            select(Appointment)
-            .where(Appointment.id == appointment_id)
-            .options(
-                selectinload(Appointment.patient),
-                selectinload(Appointment.dentist),
-                selectinload(Appointment.service),
-                selectinload(Appointment.time_slot),
-                selectinload(Appointment.notifications),
+        async with self.db.begin():
+            stmt = (
+                select(Appointment)
+                .where(Appointment.id == appointment_id)
+                .options(
+                    selectinload(Appointment.patient),
+                    selectinload(Appointment.dentist),
+                    selectinload(Appointment.service),
+                    selectinload(Appointment.time_slot),
+                    selectinload(Appointment.notifications),
+                )
             )
-        )
-        result = await self.db.execute(stmt)
-        appointment = result.scalar_one_or_none()
-        if appointment is None:
-            raise PolicyViolationError("Appointment not found.")
-        return appointment
+            result = await self.db.execute(stmt)
+            appointment = result.scalar_one_or_none()
+            if appointment is None:
+                raise PolicyViolationError("Appointment not found.")
+            return appointment
 
-    async def _create_calendar_event(self, appointment_id: UUID) -> None:
-        """Hook for Google Calendar integration."""
-        await asyncio.sleep(0)
+    @staticmethod
+    async def _run_calendar_create(appointment_id: UUID) -> None:
+        from app.core.database import AsyncSessionFactory
+        async with AsyncSessionFactory() as db:
+            try:
+                from app.services.google_calendar import create_event
+                event_id = await create_event(db=db, appointment_id=appointment_id)
+                appt = await db.get(Appointment, appointment_id)
+                if appt:
+                    if event_id:
+                        appt.google_calendar_event_id = event_id
+                    else:
+                        appt.calendar_sync_failed = True
+                    await db.commit()
+            except Exception:
+                logger.exception("Calendar sync failed for appointment %s.", appointment_id)
+                try:
+                    appt = await db.get(Appointment, appointment_id)
+                    if appt:
+                        appt.calendar_sync_failed = True
+                        await db.commit()
+                except Exception:
+                    logger.exception("Failed to flag appointment %s after calendar error.", appointment_id)
 
-    async def _update_calendar_event(self, appointment_id: UUID) -> None:
-        """Hook for Google Calendar update integration."""
-        await asyncio.sleep(0)
+    @staticmethod
+    async def _run_calendar_update(appointment_id: UUID) -> None:
+        from app.core.database import AsyncSessionFactory
+        async with AsyncSessionFactory() as db:
+            try:
+                from app.services.google_calendar import update_event
+                success = await update_event(db=db, appointment_id=appointment_id)
+                if not success:
+                    appt = await db.get(Appointment, appointment_id)
+                    if appt:
+                        appt.calendar_sync_failed = True
+                        await db.commit()
+            except Exception:
+                logger.exception("Calendar update failed for appointment %s.", appointment_id)
+                try:
+                    appt = await db.get(Appointment, appointment_id)
+                    if appt:
+                        appt.calendar_sync_failed = True
+                        await db.commit()
+                except Exception:
+                    logger.exception("Failed to flag appointment %s after calendar error.", appointment_id)
 
-    async def _cancel_calendar_event(self, appointment_id: UUID) -> None:
-        """Hook for Google Calendar cancellation integration."""
-        await asyncio.sleep(0)
+    @staticmethod
+    async def _run_calendar_cancel(appointment_id: UUID) -> None:
+        from app.core.database import AsyncSessionFactory
+        async with AsyncSessionFactory() as db:
+            try:
+                from app.services.google_calendar import cancel_event
+                await cancel_event(db=db, appointment_id=appointment_id)
+            except Exception:
+                logger.exception("Calendar cancellation failed for appointment %s.", appointment_id)
 
     async def _trigger_stripe_refund(self, appointment_id: UUID, refund_percent: Decimal) -> None:
-        """Hook for Stripe refund integration."""
-        await asyncio.sleep(0)
+        import stripe
+        try:
+            async with self.db.begin():
+                stmt = select(Appointment).where(Appointment.id == appointment_id).with_for_update(nowait=True)
+                result = await self.db.execute(stmt)
+                appointment = result.scalar_one_or_none()
+                if appointment is None:
+                    logger.warning("Appointment %s not found for refund.", appointment_id)
+                    return
+                if not appointment.stripe_payment_intent_id or not appointment.deposit_amount:
+                    logger.warning("Appointment %s has no stripe_payment_intent_id or deposit_amount.", appointment_id)
+                    return
+
+                deposit_cents = int(appointment.deposit_amount * Decimal("100"))
+                refund_cents = int(deposit_cents * refund_percent / Decimal("100"))
+
+                refund = stripe.Refund.create(
+                    payment_intent=appointment.stripe_payment_intent_id,
+                    amount=refund_cents,
+                )
+                appointment.stripe_refund_id = refund.id
+                logger.info(
+                    "Refund of %d cents issued for appointment %s (refund %s)",
+                    refund_cents, appointment_id, refund.id,
+                )
+        except Exception:
+            logger.exception("Stripe refund failed for appointment %s.", appointment_id)
 
     async def _send_notification(self, appointment_id: UUID, kind: str) -> None:
         """Hook for notification dispatch integration."""

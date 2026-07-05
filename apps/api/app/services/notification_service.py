@@ -1,6 +1,5 @@
 """Notification delivery service for appointment events."""
 
-from __future__ import annotations
 
 import asyncio
 import logging
@@ -77,7 +76,7 @@ class NotificationService:
         }
         notification_type = reminder_map[reminder_type]
 
-        base_url = getattr(settings, "frontend_base_url", "http://localhost:3000")
+        base_url = settings.frontend_base_url
         confirm_link = f"{base_url}/appointments/{appointment.id}/confirm"
         cancel_link = f"{base_url}/appointments/{appointment.id}/cancel"
         body = (
@@ -173,9 +172,9 @@ class NotificationService:
 
     @retry(wait=wait_exponential(multiplier=1, min=1, max=8), stop=stop_after_attempt(3), reraise=True)
     async def _send_sms(self, to: str, body: str) -> str:
-        account_sid = getattr(settings, "twilio_account_sid", "")
-        auth_token = getattr(settings, "twilio_auth_token", "")
-        from_number = getattr(settings, "twilio_phone_number", "")
+        account_sid = settings.twilio_account_sid
+        auth_token = settings.twilio_auth_token
+        from_number = settings.twilio_phone_number
         if not account_sid or not auth_token or not from_number:
             raise RuntimeError("Twilio SMS is not configured.")
 
@@ -194,9 +193,9 @@ class NotificationService:
 
     @retry(wait=wait_exponential(multiplier=1, min=1, max=8), stop=stop_after_attempt(3), reraise=True)
     async def _send_whatsapp(self, to: str, body: str, template_sid: str | None = None) -> str:
-        account_sid = getattr(settings, "twilio_account_sid", "")
-        auth_token = getattr(settings, "twilio_auth_token", "")
-        sandbox_from = getattr(settings, "twilio_whatsapp_from", "whatsapp:+14155238886")
+        account_sid = settings.twilio_account_sid
+        auth_token = settings.twilio_auth_token
+        sandbox_from = settings.twilio_whatsapp_from
         if not account_sid or not auth_token:
             raise RuntimeError("Twilio WhatsApp is not configured.")
 
@@ -218,8 +217,8 @@ class NotificationService:
 
     @retry(wait=wait_exponential(multiplier=1, min=1, max=8), stop=stop_after_attempt(3), reraise=True)
     async def _send_email(self, to: str, subject: str, html_body: str, text_body: str) -> str:
-        api_key = getattr(settings, "sendgrid_api_key", "")
-        from_email = getattr(settings, "sendgrid_from_email", "")
+        api_key = settings.sendgrid_api_key
+        from_email = settings.sendgrid_from_email
         if not api_key or not from_email:
             raise RuntimeError("SendGrid is not configured.")
 
@@ -231,7 +230,7 @@ class NotificationService:
             html_content=html_body,
             plain_text_content=text_body,
         )
-        template_id = getattr(settings, "sendgrid_dynamic_template_id", "")
+        template_id = settings.sendgrid_dynamic_template_id
         if template_id:
             message.template_id = template_id
             message.dynamic_template_data = {

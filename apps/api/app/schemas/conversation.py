@@ -1,6 +1,5 @@
 """Conversation domain schemas."""
 
-from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
@@ -35,7 +34,33 @@ class ConversationCreate(BaseModel):
     started_at: datetime
     ended_at: datetime | None = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "patient_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    "channel": "web",
+                    "session_id": "sess_abc123def456",
+                    "status": "active",
+                    "assigned_staff_id": None,
+                    "context": {
+                        "patient_name": "Jane Doe",
+                        "service_name": "Teeth Cleaning",
+                        "preferred_date": "2025-06-20",
+                        "preferred_time": "10:00",
+                        "preferred_dentist": "Dr. Chen",
+                        "is_new_patient": False,
+                    },
+                    "intent_history": [
+                        {"intent": "book_appointment", "timestamp": "2025-06-15T09:00:00Z"}
+                    ],
+                    "started_at": "2025-06-15T09:00:00Z",
+                    "ended_at": None,
+                }
+            ]
+        },
+    )
 
     @field_validator("started_at", "ended_at")
     @classmethod
@@ -56,12 +81,41 @@ class ConversationResponse(BaseModel):
     assigned_staff_id: UUID | None = None
     context: ConversationContext
     intent_history: list[dict[str, Any]]
+    turns: list[TurnResponse] = []
     started_at: datetime
     ended_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    "patient_id": "4fa85f64-5717-4562-b3fc-2c963f66afa7",
+                    "channel": "web",
+                    "session_id": "sess_abc123def456",
+                    "status": "active",
+                    "assigned_staff_id": None,
+                    "context": {
+                        "patient_name": "Jane Doe",
+                        "service_name": "Teeth Cleaning",
+                        "preferred_date": "2025-06-20",
+                        "is_new_patient": False,
+                    },
+                    "intent_history": [
+                        {"intent": "book_appointment", "timestamp": "2025-06-15T09:00:00Z"}
+                    ],
+                    "turns": [],
+                    "started_at": "2025-06-15T09:00:00Z",
+                    "ended_at": None,
+                    "created_at": "2025-06-15T09:00:00Z",
+                    "updated_at": "2025-06-15T09:00:00Z",
+                }
+            ]
+        },
+    )
 
     @field_validator("started_at", "ended_at", "created_at", "updated_at")
     @classmethod
@@ -83,7 +137,38 @@ class TurnCreate(BaseModel):
     processing_time_ms: int | None = None
     turn_index: int
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "conversation_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    "role": "user",
+                    "content": "I'd like to book a teeth cleaning appointment for next Tuesday.",
+                    "intent": "book_appointment",
+                    "confidence_score": 0.95,
+                    "entities_extracted": {
+                        "service": "teeth cleaning",
+                        "date": "next Tuesday",
+                    },
+                    "processing_time_ms": 120,
+                    "turn_index": 1,
+                },
+                {
+                    "conversation_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    "role": "assistant",
+                    "content": "I can help you with that! We have availability on Tuesday, June 20th at 10:00 AM or 2:00 PM. Which works best for you?",
+                    "intent": "suggest_slots",
+                    "confidence_score": 0.98,
+                    "entities_extracted": {
+                        "available_times": ["2025-06-20T10:00:00", "2025-06-20T14:00:00"],
+                    },
+                    "processing_time_ms": 350,
+                    "turn_index": 2,
+                },
+            ]
+        },
+    )
 
 
 class TurnResponse(BaseModel):
@@ -99,7 +184,29 @@ class TurnResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": "7fa85f64-5717-4562-b3fc-2c963f66afaa",
+                    "conversation_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    "role": "user",
+                    "content": "I'd like to book a teeth cleaning appointment for next Tuesday.",
+                    "intent": "book_appointment",
+                    "confidence_score": 0.95,
+                    "entities_extracted": {
+                        "service": "teeth cleaning",
+                        "date": "next Tuesday",
+                    },
+                    "processing_time_ms": 120,
+                    "turn_index": 1,
+                    "created_at": "2025-06-15T09:00:00Z",
+                    "updated_at": "2025-06-15T09:00:00Z",
+                }
+            ]
+        },
+    )
 
     @field_validator("created_at", "updated_at")
     @classmethod

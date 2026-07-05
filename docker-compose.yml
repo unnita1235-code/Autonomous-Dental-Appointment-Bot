@@ -49,6 +49,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     command: sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --reload"
 
   worker:
@@ -63,7 +69,7 @@ services:
     depends_on:
       api:
         condition: service_started
-    command: celery -A app.workers.celery_app worker --loglevel=info
+    command: celery -A app.workers.celery_app worker --loglevel=info --without-gossip --without-mingle --time-limit=300
 
   flower:
     image: dental-bot-api:dev
@@ -79,7 +85,48 @@ services:
     depends_on:
       worker:
         condition: service_started
-    command: celery -A app.workers.celery_app flower --port=5555 --basic_auth=${CELERY_FLOWER_USER:-admin}:${CELERY_FLOWER_PASSWORD:-admin}
+    command: celery -A app.workers.celery_app flower --port=5555 --basic_auth=${CELERY_FLOWER_USER:-admin}:${CELERY_FLOWER_PASSWORD:-admin} --url-prefix=flower
+
+  beat:
+    image: dental-bot-api:dev
+    container_name: dental-bot-beat
+    working_dir: /app
+    env_file:
+      - .env
+    restart: always
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app beat --loglevel=info
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: dental-bot-web:dev
+    container_name: dental-bot-web
+    working_dir: /app
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
+    command: npm run dev
 
 volumes:
   postgres_data:

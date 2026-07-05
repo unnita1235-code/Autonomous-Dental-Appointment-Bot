@@ -1,6 +1,5 @@
 """Appointment domain schemas."""
 
-from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
@@ -48,7 +47,21 @@ class AppointmentCreate(BaseModel):
     notes: str | None = None
     source_channel: AppointmentSourceChannel = AppointmentSourceChannel.WEB
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "patient_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    "dentist_id": "4fa85f64-5717-4562-b3fc-2c963f66afa7",
+                    "service_id": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+                    "time_slot_id": "6fa85f64-5717-4562-b3fc-2c963f66afa9",
+                    "notes": "Patient prefers morning appointments.",
+                    "source_channel": "web",
+                }
+            ]
+        },
+    )
 
 
 class AppointmentUpdate(BaseModel):
@@ -102,7 +115,53 @@ class AppointmentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    "patient_id": "4fa85f64-5717-4562-b3fc-2c963f66afa7",
+                    "dentist_id": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+                    "service_id": "6fa85f64-5717-4562-b3fc-2c963f66afa9",
+                    "time_slot_id": "7fa85f64-5717-4562-b3fc-2c963f66afaa",
+                    "start_time": "2025-06-15T10:00:00Z",
+                    "status": "scheduled",
+                    "source_channel": "web",
+                    "deposit_required": False,
+                    "deposit_paid": False,
+                    "deposit_amount": None,
+                    "stripe_payment_intent_id": None,
+                    "cancellation_reason": None,
+                    "notes": "Patient prefers morning appointments.",
+                    "reminder_24h_sent": False,
+                    "reminder_2h_sent": False,
+                    "dentist": {
+                        "id": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+                        "first_name": "Sarah",
+                        "last_name": "Chen",
+                        "email": "sarah.chen@dentalspa.com",
+                        "phone": "+12025551234",
+                    },
+                    "service": {
+                        "id": "6fa85f64-5717-4562-b3fc-2c963f66afa9",
+                        "name": "Teeth Cleaning",
+                        "duration_minutes": 60,
+                        "price": "120.00",
+                    },
+                    "time_slot": {
+                        "id": "7fa85f64-5717-4562-b3fc-2c963f66afaa",
+                        "dentist_id": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+                        "start_time": "2025-06-15T10:00:00Z",
+                        "end_time": "2025-06-15T11:00:00Z",
+                        "is_available": False,
+                    },
+                    "created_at": "2025-06-10T08:30:00Z",
+                    "updated_at": "2025-06-10T08:30:00Z",
+                }
+            ]
+        },
+    )
 
     @field_validator("start_time", "created_at", "updated_at")
     @classmethod
@@ -134,7 +193,21 @@ class AppointmentStatusUpdate(BaseModel):
     status: AppointmentStatus
     cancellation_reason: str | None = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "status": "cancelled",
+                    "cancellation_reason": "Patient has a scheduling conflict.",
+                },
+                {
+                    "status": "completed",
+                    "cancellation_reason": None,
+                },
+            ]
+        },
+    )
 
 
 __all__ = [
