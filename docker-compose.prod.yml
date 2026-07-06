@@ -1,7 +1,7 @@
 # Production Docker Compose (standalone — not an override).
 #
 # Services: postgres, redis, api, worker, beat.
-# Flower is omitted (use Railway metrics or a dedicated monitoring stack).
+# Flower is omitted (use Render metrics or a dedicated monitoring stack).
 # The Next.js front-end is deployed separately via Vercel (see DEPLOYMENT.md).
 #
 # Usage:

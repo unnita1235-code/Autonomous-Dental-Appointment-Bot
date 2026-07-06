@@ -6,7 +6,7 @@ from twilio.rest import Client
 
 TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
-RAILWAY_URL = os.environ.get("RAILWAY_URL", "https://api-production-c95b.up.railway.app")
+API_URL = os.environ.get("API_URL", "https://api.onrender.com")
 
 if not TWILIO_SID or not TWILIO_TOKEN:
     print("FATAL: Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN environment variables")
@@ -45,9 +45,9 @@ if available:
     try:
         incoming = client.incoming_phone_numbers.create(
             phone_number=buy.phone_number,
-            sms_url=f"{RAILWAY_URL}/api/v1/webhooks/twilio",
+            sms_url=f"{API_URL}/api/v1/webhooks/twilio",
             sms_method="POST",
-            voice_url=f"{RAILWAY_URL}/api/v1/webhooks/twilio",
+            voice_url=f"{API_URL}/api/v1/webhooks/twilio",
             voice_method="POST",
         )
         print(f"  Purchased! SID: {incoming.sid}")

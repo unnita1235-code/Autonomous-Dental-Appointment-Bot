@@ -1,0 +1,247 @@
+services:
+  - type: web
+    name: api
+    env: docker
+    dockerfilePath: apps/api/Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dental-bot-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: dental-bot-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: dental-bot-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: dental-bot-redis
+          property: connectionString
+      - key: PORT
+        value: "8000"
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "60"
+      - key: PROMETHEUS_ENABLED
+        value: "false"
+      - key: APM_ENABLED
+        value: "false"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com,localhost,127.0.0.1"
+      - key: FRONTEND_BASE_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX_NAME
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_FROM_EMAIL
+        sync: false
+      - key: SENDGRID_DYNAMIC_TEMPLATE_ID
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      - key: ADMIN_API_KEY
+        sync: false
+      - key: DEPOSIT_AMOUNT
+        sync: false
+      - key: LATE_CANCELLATION_REFUND_PERCENT
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: GOOGLE_CALENDAR_REFRESH_TOKEN
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: BACKUP_S3_BUCKET
+        sync: false
+      - key: BACKUP_AWS_ACCESS_KEY_ID
+        sync: false
+      - key: BACKUP_AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: BACKUP_AWS_REGION
+        sync: false
+    healthCheckPath: /health/live
+    autoDeploy: true
+    preDeployCommand: alembic upgrade head
+
+  - type: worker
+    name: worker
+    env: docker
+    dockerfilePath: apps/api/Dockerfile
+    startCommand: celery -A app.workers.celery_app worker --loglevel=info --without-gossip --without-mingle --time-limit=300
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dental-bot-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: dental-bot-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: dental-bot-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: dental-bot-redis
+          property: connectionString
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX_NAME
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_FROM_EMAIL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      - key: ADMIN_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: GOOGLE_CALENDAR_REFRESH_TOKEN
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+    autoDeploy: true
+
+  - type: worker
+    name: beat
+    env: docker
+    dockerfilePath: apps/api/Dockerfile
+    startCommand: celery -A app.workers.celery_app beat --loglevel=info
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dental-bot-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: dental-bot-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: dental-bot-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: dental-bot-redis
+          property: connectionString
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_FROM_EMAIL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      - key: ADMIN_API_KEY
+        sync: false
+    autoDeploy: true
+
+databases:
+  - name: dental-bot-db
+    databaseName: dental_bot
+    plan: starter
+
+redis:
+  - name: dental-bot-redis
+    plan: starter

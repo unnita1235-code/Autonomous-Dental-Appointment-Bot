@@ -8,16 +8,11 @@ import sys
 import urllib.request
 import urllib.error
 
-RAILWAY_URL = os.environ.get("RAILWAY_URL", "https://api-production-c95b.up.railway.app")
-RAILWAY_TOKEN = os.environ.get("RAILWAY_TOKEN", "")
+RENDER_URL = os.environ.get("RENDER_URL", "https://api.onrender.com")
 STRIPE_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
 TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
-RAILWAY_PROJECT = "7737571a-f0e8-48a2-9e8d-d20436500d72"
 
-if not RAILWAY_TOKEN:
-    print("FATAL: RAILWAY_TOKEN environment variable is required")
-    sys.exit(1)
 if not STRIPE_KEY:
     print("FATAL: STRIPE_SECRET_KEY environment variable is required")
     sys.exit(1)
@@ -36,7 +31,7 @@ def setup_stripe():
 
     # List existing webhooks to avoid duplicates
     existing = stripe_lib.WebhookEndpoint.list()
-    webhook_url = f"{RAILWAY_URL}/api/v1/webhooks/stripe"
+    webhook_url = f"{RENDER_URL}/api/v1/webhooks/stripe"
     for ep in existing.data:
         if ep.url == webhook_url:
             print(f"  Webhook already exists: {ep.id}")
@@ -50,7 +45,7 @@ def setup_stripe():
             "payment_intent.payment_failed",
             "checkout.session.completed",
         ],
-        description="Dental Bot - Railway",
+        description="Dental Bot - Render",
     )
     stripe_secret = endpoint.secret
     print(f"  Created: {endpoint.id}")
@@ -69,7 +64,7 @@ def setup_twilio():
         print("  Go to https://console.twilio.com -> Phone Numbers -> Buy a Number")
         return False
 
-    base_webhook = f"{RAILWAY_URL}/api/v1/webhooks/twilio"
+    base_webhook = f"{RENDER_URL}/api/v1/webhooks/twilio"
     for num in numbers:
         print(f"  Updating {num.phone_number} ...")
         num.update(
@@ -83,61 +78,31 @@ def setup_twilio():
     print("  Twilio webhooks configured.")
     return True
 
-# ── Step 3: Railway Migration via CLI ────────────────────────────────
-def run_migration():
-    print("\n=== Railway Migration ===")
-    import subprocess
-    env = {**os.environ, "RAILWAY_TOKEN": RAILWAY_TOKEN}
-    try:
-        result = subprocess.run(
-            ["railway.cmd", "run", "-p", RAILWAY_PROJECT, "-e", "production",
-             "alembic", "upgrade", "head"],
-            capture_output=True, text=True, timeout=120, env=env,
-        )
-        if result.returncode == 0:
-            print(f"  SUCCESS: {result.stdout}")
-            return True
-        else:
-            print(f"  FAILED (code {result.returncode}): {result.stderr or result.stdout}")
-            return False
-    except FileNotFoundError:
-        print("  railway CLI not in PATH")
-        return False
-    except subprocess.TimeoutExpired:
-        print("  Timed out")
-        return False
-
-# ── Step 4: Print env vars for Railway ───────────────────────────────
-def print_env_vars():
-    print("\n=== Environment Variables to Add to Railway ===")
-    print("\nAdd these to Railway Dashboard -> Variables:")
-    if stripe_secret:
-        print(f"  STRIPE_WEBHOOK_SECRET={stripe_secret}")
-
 # ── Main ────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     # Test health first
     try:
-        r = urllib.request.urlopen(f"{RAILWAY_URL}/health/live", timeout=10)
+        r = urllib.request.urlopen(f"{RENDER_URL}/health/live", timeout=10)
         print(f"Health: {r.status}")
     except Exception as e:
         print(f"Health check failed: {e}")
         exit(1)
     try:
-        r2 = urllib.request.urlopen(f"{RAILWAY_URL}/health/ready", timeout=10)
+        r2 = urllib.request.urlopen(f"{RENDER_URL}/health/ready", timeout=10)
         print(f"Ready:  {r2.status}")
     except Exception as e:
         print(f"Ready check skipped (optional): {e}")
 
-    migrated = run_migration()
     stripe_secret_val = setup_stripe()
     twilio_done = setup_twilio()
-    print_env_vars()
+
+    if stripe_secret_val:
+        print(f"\n  Set this in Render Dashboard → api → Environment:")
+        print(f"    STRIPE_WEBHOOK_SECRET={stripe_secret_val}")
 
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
     print(f"  Health check:   PASS")
-    print(f"  Migration:      {'PASS' if migrated else 'FAIL (run manually)'}")
     print(f"  Stripe webhook: {'PASS' if stripe_secret_val else 'FAIL'}")
     print(f"  Twilio webhook: {'PASS' if twilio_done else 'FAIL (need phone #)'}")

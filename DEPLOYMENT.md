@@ -1,156 +1,155 @@
-# Deployment — Backend (Railway)
+# Deployment — Backend (Render)
 
 > **Front-end**: `apps/web` is deployed on **Vercel** (`.github/workflows/vercel.yml`).
 > Back-end services below are for `apps/api`.
 
-## Deploy target: Railway
+## Deploy target: Render
 
-Railway provides managed Postgres and Redis. No self-hosting required for
-stateful services. The API, Celery worker, and Celery beat run as separate
-Railway services, each built from the repo's Dockerfile.
-
----
-
-## Pre-flight checklist
-
-- [ ] 1. **Secrets** — every variable listed below is set in Railway
-       Dashboard → your-project → Variables (or via `railway variables set`).
-       See *Secrets inventory* below.
-- [ ] 2. **Postgres** — provision a Railway Postgres plugin.
-       Railway assigns a `DATABASE_URL` to the plugin, but you may override
-       via `DATABASE_URL` if you use an external provider.
-- [ ] 3. **Redis** — provision a Railway Redis plugin.
-       Railway assigns a `REDIS_URL` to the plugin.
-- [ ] 4. **Build** — each Railway service uses the repo root as build context
-       and Dockerfile path `apps/api/Dockerfile`. No Nixpacks overrides needed.
-- [ ] 5. **Health checks** — Railway will poll `/health/live` once the service
-       starts (set Healthcheck Path in the service's settings).
-- [ ] 6. **Config check** — the Dockerfile runs `python -m app.core.config_check`
-       at startup. If a required integration is missing, the container exits.
-       Set `SKIP_CONFIG_CHECK=1` only temporarily for debugging.
-- [ ] 7. **Migrations** — after the first deploy, run once:
-       ```
-       railway run alembic upgrade head
-       ```
-       Subsequent deploys will pick up the same database; run the command
-       again after any new migration is added.
+Render provides managed Postgres and Redis. The API, Celery worker, and
+Celery beat run as separate Render services, each built from the repo's
+Dockerfile and provisioned via `render.yaml` (Render Blueprint).
 
 ---
 
-## Railway services
+## Prerequisites
 
-| Service    | Source                        | Port  | Health check path |
-|------------|-------------------------------|-------|-------------------|
-| `api`      | `apps/api/Dockerfile`         | 8000  | `/health/live`    |
-| `worker`   | `apps/api/Dockerfile`         | —     | —                 |
-| `beat`     | `apps/api/Dockerfile`         | —     | —                 |
+1. A Render account (https://dashboard.render.com)
+2. GitHub repo connected to Render (use "Existing Git Repo" during Blueprint setup)
+3. All secrets listed below ready to paste into the Dashboard
 
-Each service is created from the Railway Dashboard: New → Empty Service →
-"Deploy from repo" → select this repo → set root directory = `/`.
+---
 
-Overwrite the **Start Command** for each:
+## Quick start (Blueprint)
 
-- **api**: `python -m app.core.config_check && gunicorn app.main:app --worker-class uvicorn.workers.UvicornWorker --workers 4 --bind 0.0.0.0:${PORT:-8000} --max-requests 1200 --max-requests-jitter 50 --timeout 120 --keep-alive 5`
-- **worker**: `celery -A app.workers.celery_app worker --loglevel=info --without-gossip --without-mingle --time-limit=300`
-- **beat**:  `celery -A app.workers.celery_app beat --loglevel=info`
+1. Push `render.yaml` to `main`.
+2. In Render Dashboard click **New + → Blueprint**.
+3. Select this repo → Review the resources → **Apply**.
+4. Render creates: 3 services (api, worker, beat), 1 Postgres DB, 1 Redis instance.
+5. Fill in the `sync: false` env vars (marked below) via Dashboard → each service → Environment.
+6. Render runs `alembic upgrade head` automatically via `preDeployCommand` on first deploy.
 
-(You can omit `python -m app.core.config_check &&` from api's start command if
-`SKIP_CONFIG_CHECK=1` is set.)
+---
+
+## Render services
+
+| Service   | Type     | Start command                                                              |
+|-----------|----------|----------------------------------------------------------------------------|
+| `api`     | Web      | *(uses Dockerfile CMD)*                                                    |
+| `worker`  | Worker   | `celery -A app.workers.celery_app worker --loglevel=info ...`              |
+| `beat`    | Worker   | `celery -A app.workers.celery_app beat --loglevel=info`                    |
+
+Each is built from `apps/api/Dockerfile`. Health checks hit `/health/live`.
 
 ---
 
 ## Secrets inventory
 
-Every secret below maps to a field in `app/core/config.py`. Set them in Railway
-Dashboard → Variables. Mark sensitive values as **secret**.
+Every secret below maps to a field in `app/core/config.py`. Set them in Render
+Dashboard → each service → Environment. Secrets marked **sync** are already in
+`render.yaml`; others must be pasted manually.
 
 ### Required (app won't start without these)
 
-| Variable                      | Source / notes                           |
-|-------------------------------|------------------------------------------|
-| `DATABASE_URL`                | Assigned by Railway Postgres plugin      |
-| `REDIS_URL`                   | Assigned by Railway Redis plugin         |
-| `SECRET_KEY`                  | `openssl rand -hex 32`                  |
-| `JWT_SECRET`                  | `openssl rand -hex 32`                  |
-| `JWT_ALGORITHM`               | `HS256`                                  |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30`                                     |
-| `ADMIN_API_KEY`               | `openssl rand -hex 32`                  |
+| Variable                      | Source / notes                        | In render.yaml |
+|-------------------------------|---------------------------------------|----------------|
+| `DATABASE_URL`                | Assigned by Render Postgres           | auto (sync)    |
+| `REDIS_URL`                   | Assigned by Render Redis              | auto (sync)    |
+| `CELERY_BROKER_URL`           | Same as REDIS_URL                     | auto (sync)    |
+| `CELERY_RESULT_BACKEND`       | Same as REDIS_URL                     | auto (sync)    |
+| `SECRET_KEY`                  | `openssl rand -hex 32`               | manual         |
+| `JWT_SECRET`                  | `openssl rand -hex 32`               | manual         |
+| `JWT_ALGORITHM`               | `HS256`                               | auto           |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30`                                   | auto           |
+| `ADMIN_API_KEY`               | `openssl rand -hex 32`               | manual         |
 
 ### AI integrations
 
-| Variable              | Source / notes                |
-|-----------------------|-------------------------------|
-| `ANTHROPIC_API_KEY`   | Anthropic Console             |
-| `DEEPGRAM_API_KEY`    | Deepgram Console              |
-| `PINECONE_API_KEY`    | Pinecone Console              |
-| `PINECONE_INDEX_NAME` | `dental-embeddings`           |
+| Variable              | Source / notes                | In render.yaml |
+|-----------------------|-------------------------------|----------------|
+| `ANTHROPIC_API_KEY`   | Anthropic Console             | manual         |
+| `DEEPGRAM_API_KEY`    | Deepgram Console              | manual         |
+| `PINECONE_API_KEY`    | Pinecone Console              | manual         |
+| `PINECONE_INDEX_NAME` | `dental-embeddings`           | manual         |
 
 ### Communications
 
-| Variable                  | Source / notes                |
-|---------------------------|-------------------------------|
-| `TWILIO_ACCOUNT_SID`      | Twilio Console                |
-| `TWILIO_AUTH_TOKEN`       | Twilio Console                |
-| `TWILIO_PHONE_NUMBER`     | Twilio Console                |
-| `TWILIO_WHATSAPP_FROM`    | Twilio WhatsApp sender        |
-| `SENDGRID_API_KEY`        | SendGrid API Keys             |
-| `SENDGRID_FROM_EMAIL`     | Verified sender               |
+| Variable                  | Source / notes                | In render.yaml |
+|---------------------------|-------------------------------|----------------|
+| `TWILIO_ACCOUNT_SID`      | Twilio Console                | manual         |
+| `TWILIO_AUTH_TOKEN`       | Twilio Console                | manual         |
+| `TWILIO_PHONE_NUMBER`     | Twilio Console                | manual         |
+| `TWILIO_WHATSAPP_FROM`    | Twilio WhatsApp sender        | manual         |
+| `SENDGRID_API_KEY`        | SendGrid API Keys             | manual         |
+| `SENDGRID_FROM_EMAIL`     | Verified sender               | manual         |
 
 ### Payments
 
-| Variable                   | Source / notes                |
-|----------------------------|-------------------------------|
-| `STRIPE_SECRET_KEY`        | Stripe Dashboard → API keys   |
-| `STRIPE_WEBHOOK_SECRET`    | Stripe Dashboard → Webhooks   |
-| `DEPOSIT_AMOUNT`           | `5000` (cents → $50.00)       |
-| `LATE_CANCELLATION_REFUND_PERCENT` | `50` (percent)         |
+| Variable                   | Source / notes                | In render.yaml |
+|----------------------------|-------------------------------|----------------|
+| `STRIPE_SECRET_KEY`        | Stripe Dashboard → API keys   | manual         |
+| `STRIPE_WEBHOOK_SECRET`    | Stripe Dashboard → Webhooks   | manual         |
+| `DEPOSIT_AMOUNT`           | `5000` (cents → $50.00)       | manual         |
+| `LATE_CANCELLATION_REFUND_PERCENT` | `50` (percent)         | manual         |
 
 ### Google Calendar
 
-| Variable                      | Source / notes                |
-|-------------------------------|-------------------------------|
-| `GOOGLE_CLIENT_ID`            | Google Cloud Console          |
-| `GOOGLE_CLIENT_SECRET`        | Google Cloud Console          |
-| `GOOGLE_REDIRECT_URI`         | Your OAuth redirect URI       |
-| `GOOGLE_CALENDAR_REFRESH_TOKEN` | Obtained via OAuth2 flow   |
+| Variable                      | Source / notes                | In render.yaml |
+|-------------------------------|-------------------------------|----------------|
+| `GOOGLE_CLIENT_ID`            | Google Cloud Console          | manual         |
+| `GOOGLE_CLIENT_SECRET`        | Google Cloud Console          | manual         |
+| `GOOGLE_REDIRECT_URI`         | Your OAuth redirect URI       | manual         |
+| `GOOGLE_CALENDAR_REFRESH_TOKEN` | Obtained via OAuth2 flow   | manual         |
 
 ### Monitoring & observability
 
-| Variable               | Source / notes                |
-|------------------------|-------------------------------|
-| `SENTRY_DSN`           | Sentry Dashboard              |
-| `PROMETHEUS_ENABLED`   | `true`                        |
-| `APM_ENABLED`          | `true`                        |
+| Variable               | Source / notes                | In render.yaml |
+|------------------------|-------------------------------|----------------|
+| `SENTRY_DSN`           | Sentry Dashboard              | manual         |
+| `PROMETHEUS_ENABLED`   | `false` (enable when ready)   | auto           |
+| `APM_ENABLED`          | `false`                       | auto           |
 
 ### S3 backup
 
-| Variable                     | Source / notes                |
-|------------------------------|-------------------------------|
-| `BACKUP_S3_BUCKET`           | S3 bucket name                |
-| `BACKUP_AWS_ACCESS_KEY_ID`   | IAM user access key           |
-| `BACKUP_AWS_SECRET_ACCESS_KEY` | IAM user secret key         |
-| `BACKUP_AWS_REGION`          | `us-east-1`                   |
+| Variable                     | Source / notes                | In render.yaml |
+|------------------------------|-------------------------------|----------------|
+| `BACKUP_S3_BUCKET`           | S3 bucket name                | manual         |
+| `BACKUP_AWS_ACCESS_KEY_ID`   | IAM user access key           | manual         |
+| `BACKUP_AWS_SECRET_ACCESS_KEY` | IAM user secret key         | manual         |
+| `BACKUP_AWS_REGION`          | `us-east-1`                   | manual         |
+
+### Other
+
+| Variable                | Source / notes                        | In render.yaml |
+|-------------------------|---------------------------------------|----------------|
+| `ENVIRONMENT`           | `production`                          | auto           |
+| `DEBUG`                 | `false`                               | auto           |
+| `CORS_ORIGINS`          | `*` (hardened in production validator)| auto           |
+| `ALLOWED_HOSTS`         | `.onrender.com,localhost,127.0.0.1`   | auto           |
+| `FRONTEND_BASE_URL`     | Your Vercel front-end URL             | manual         |
 
 ---
 
 ## Database backup strategy
 
-**Postgres** is a Railway managed plugin. Railway takes automated daily
-snapshots with 7-day retention. Restore is self-service via the Dashboard or
-`railway volume` CLI.
+**Postgres** is a Render managed database. Render takes automated daily
+snapshots with 7-day retention. Restore is self-service via the Dashboard.
 
 | Property            | Value                      |
 |---------------------|----------------------------|
 | Frequency           | Daily (automatic)          |
 | Retention           | 7 days                     |
-| Restore method      | Railway Dashboard → Backups|
+| Restore method      | Render Dashboard → Backups |
 | Restore test cadence| Quarterly (recommended)    |
 
 **Recommendation**: every quarter, restore the latest snapshot to a temporary
-Railway project and run a smoke test (health endpoint, a sample query). This
-validates that backups are restorable before an actual incident.
+Render project and run a smoke test (health endpoint, a sample query).
 
-If you need longer retention, enable Railway's **Point-in-Time Recovery** (PiTR)
-or export a `pg_dump` to S3 via a cron job (the Celery beat scheduler can run
-it — wire a task in `app/workers/` that calls `pg_dump` and uploads to the
-`BACKUP_S3_BUCKET`).
+---
+
+## Post-deployment steps
+
+1. **Update Twilio webhook** — point to `https://<api-url>/api/v1/webhooks/twilio`
+2. **Re-create Stripe webhook** — point to `https://<api-url>/api/v1/webhooks/stripe`
+   (this generates a new `STRIPE_WEBHOOK_SECRET`)
+3. **Complete Google Calendar OAuth** — run `python scripts/setup_google_calendar.py`
+4. **Verify** `GET /health/ready` returns 200 (DB + Redis reachable)

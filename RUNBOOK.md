@@ -20,22 +20,21 @@ celery -A app.workers.celery_app inspect active
 celery -A app.workers.celery_app inspect reserved
 celery -A app.workers.celery_app inspect stats | grep "total"
 
-# Check worker logs (on Railway)
-railway logs --service worker --tail
+# Check worker logs (on Render)
+# Render Dashboard → worker service → Logs
 ```
 
 ### Resolution
 
 **1a. Worker is down or crashed**
 
-Restart the worker service on Railway:
-```
-railway service restart worker
-```
+Restart the worker service in Render Dashboard → worker service → Manual Deploy → Clear build cache & deploy.
 
 If it crashes immediately, check for import errors or configuration issues:
-```
-railway run celery -A app.workers.celery_app worker --loglevel=debug
+```bash
+# Run a one-off worker in Render Shell:
+# Dashboard → worker → Shell → run:
+celery -A app.workers.celery_app worker --loglevel=debug
 ```
 
 **1b. Worker is running but stuck on a long task**
@@ -54,10 +53,9 @@ celery -A app.workers.celery_app revoke <task_id> --terminate
 
 **1c. Need more capacity**
 
-Scale up the worker concurrency. On Railway, increase the worker service
-instance count, or add `--concurrency=8` to the worker start command. Each
-worker process can handle one task at a time; concurrency > 1 uses
-`--prefetch-multiplier` to control how many tasks each process reserves.
+Increase worker concurrency by editing `startCommand` in Render Dashboard
+(e.g., `--concurrency=8`), or scale horizontally by adding more worker
+services.
 
 **1d. Redis broker is full**
 
@@ -96,7 +94,7 @@ redis-cli -u $REDIS_URL EVAL "return redis.call('DEL', unpack(redis.call('KEYS',
 
 1. Find the exact error in the logs:
    ```
-   railway logs --service api --filter "webhook|twilio|stripe|signature"
+   Render Dashboard → api → Logs → filter "webhook|twilio|stripe|signature"
    ```
 
    Check for:
@@ -106,9 +104,8 @@ redis-cli -u $REDIS_URL EVAL "return redis.call('DEL', unpack(redis.call('KEYS',
    - `"Invalid Stripe webhook signature"` — `construct_event` failed.
 
 2. Verify the current secrets match what the provider expects:
-   ```bash
-   railway variables get TWILIO_AUTH_TOKEN
-   railway variables get STRIPE_WEBHOOK_SECRET
+   ```
+   Render Dashboard → api → Environment → check TWILIO_AUTH_TOKEN / STRIPE_WEBHOOK_SECRET
    ```
 
 ### Resolution
@@ -116,24 +113,16 @@ redis-cli -u $REDIS_URL EVAL "return redis.call('DEL', unpack(redis.call('KEYS',
 **2a. Rotated Twilio auth token**
 
 Twilio allows rotating the `TWILIO_AUTH_TOKEN` without notice if a previous
-token was compromised. Update the secret:
-
-```bash
-railway variables set TWILIO_AUTH_TOKEN=<new_token>
-railway service restart api
-```
+token was compromised. Update the secret in Render Dashboard → api →
+Environment → save → the service auto-restarts.
 
 **2b. Re-created Stripe webhook endpoint**
 
 Creating a new webhook endpoint in Stripe Dashboard generates a new signing
 secret. The old secret immediately stops working.
 
-```bash
-railway variables set STRIPE_WEBHOOK_SECRET=<whsec_...>
-railway service restart api
-```
-
-Then re-test with Stripe's "Send test webhook" button in the Dashboard.
+Update `STRIPE_WEBHOOK_SECRET` in Render Dashboard → api → Environment.
+The service auto-restarts.
 
 **2c. Infrastructure change (proxy, TLS termination)**
 
@@ -145,8 +134,7 @@ dashboards.
   in" URL.
 - Stripe: Dashboard → Developers → Webhooks → {endpoint} → Endpoint URL.
 
-Both must be HTTPS in production. A non-matching URL means the signature was
-computed against one URL but verified against another.
+Both must be HTTPS in production.
 
 ---
 
@@ -163,7 +151,7 @@ computed against one URL but verified against another.
 
 ```bash
 # Check recent conversation turns with low confidence
-railway logs --service api --filter "confidence|HUMAN_TAKEOVER|handoff"
+# Render Dashboard → api → Logs → filter "confidence|HUMAN_TAKEOVER|handoff"
 ```
 
 Look for patterns: is it all conversations or just one channel? Is there a
@@ -193,7 +181,7 @@ The system prompt is defined in `app/ai/prompts.py`. Revert any recent changes:
 git log --oneline -5 app/ai/prompts.py
 git revert HEAD -- app/ai/prompts.py
 git push origin main
-# Railway auto-deploys on push; otherwise `railway service restart api`
+# Render auto-deploys on push
 ```
 
 **3c. Context window exhaustion**
@@ -230,13 +218,13 @@ offline, webhooks start erroring).
 
 **4a. Identify the bad version**
 
-Railway tags each deploy with a commit SHA. Find the previous working deploy
-in Railway Dashboard → Deployments.
+Render tags each deploy with a commit SHA. Find the previous working deploy
+in Render Dashboard → Deploy log for the api service.
 
 **4b. Roll back (soft)**
 
-Click "Rollback" on the last known-good deploy in Railway Dashboard. This
-re-deploys that commit without a new git push.
+In Render Dashboard → api service → Deploy log → find last known-good deploy →
+click "Rollback". This re-deploys that commit without a new git push.
 
 **4c. Roll back (hard) — revert the git commit**
 
@@ -247,7 +235,7 @@ git revert HEAD
 git push origin main
 ```
 
-Railway auto-deploys from `main`. The revert undoes the change in git so
+Render auto-deploys from `main`. The revert undoes the change in git so
 future deploys don't re-introduce the bug.
 
 **4d. If the migration is broken**
@@ -270,11 +258,8 @@ Postgres), so a broken migration should never reach main. If it does:
 **4e. Post-rollback verification**
 
 ```bash
-# Run config check
-railway run python -m app.core.config_check
-
 # Smoke test
-curl -f http://<api-url>/health/ready
+curl -f https://<api-url>/health/ready
 
 # Verify one booking works via /docs or a manual test
 ```
@@ -288,5 +273,5 @@ curl -f http://<api-url>/health/ready
 | Anthropic API outage | Anthropic status page | https://status.anthropic.com |
 | Twilio outages | Twilio status page | https://status.twilio.com |
 | Stripe issues | Stripe status page | https://status.stripe.com |
-| Railway platform issue | Railway status page | https://status.railway.app |
+| Render platform issue | Render status page | https://status.render.com |
 | Secrets rotation | Team lead / DevOps | Documented in DEPLOYMENT.md |

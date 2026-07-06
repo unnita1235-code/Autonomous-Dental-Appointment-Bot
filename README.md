@@ -112,7 +112,7 @@ main.
 
 ## Deployment
 
-- **Backend**: Railway (see [DEPLOYMENT.md](DEPLOYMENT.md) for the full checklist)
+- **Backend**: Render (see [DEPLOYMENT.md](DEPLOYMENT.md) for the full checklist)
 - **Front-end**: Vercel (`.github/workflows/vercel.yml`)
 - **CI**: `.github/workflows/backend-ci.yml` (ruff, mypy, pytest, docker build,
   migration check)
@@ -173,4 +173,4 @@ prevents double-booking. If you see duplicate bookings:
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Redis dual role, context compaction, token lifecycle |
 | [RUNBOOK.md](RUNBOOK.md) | Operational procedures for incidents |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Coding conventions, PR workflow |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Railway deploy checklist, secrets, backup |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Render deploy checklist, secrets, backup |
