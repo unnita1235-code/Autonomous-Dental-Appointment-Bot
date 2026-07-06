@@ -22,13 +22,38 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Create ENUM types idempotently before tables reference them
+    for _name, _values in (
+        ("performed_by_type", ("BOT", "PATIENT", "STAFF")),
+        ("channel_preference", ("web", "whatsapp", "sms", "voice")),
+        ("staff_role", ("RECEPTIONIST", "MANAGER", "DENTIST_VIEW")),
+        ("conversation_channel", ("web", "whatsapp", "sms", "voice")),
+        ("conversation_status", ("ACTIVE", "WAITING_HUMAN", "HUMAN_TAKEOVER", "COMPLETED", "ABANDONED")),
+        ("appointment_status", ("PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW")),
+        ("appointment_source_channel", ("web", "whatsapp", "sms", "voice", "staff")),
+        ("conversation_role", ("user", "assistant", "system")),
+        ("notification_type", ("CONFIRM", "REMINDER_48H", "REMINDER_24H", "REMINDER_2H", "CANCELLATION", "RESCHEDULE")),
+        ("notification_channel", ("web", "whatsapp", "sms", "voice")),
+        ("notification_status", ("PENDING", "SENT", "FAILED", "DELIVERED")),
+    ):
+        _values_sql = ", ".join(f"'{v}'" for v in _values)
+        op.execute(f"""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '{_name}') THEN
+                    CREATE TYPE {_name} AS ENUM ({_values_sql});
+                END IF;
+            END
+            $$;
+        """)
+
     op.create_table(
         "audit_logs",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("entity_type", sa.String(length=100), nullable=False),
         sa.Column("entity_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("action", sa.String(length=120), nullable=False),
-        sa.Column("performed_by_type", sa.Enum("BOT", "PATIENT", "STAFF", name="performed_by_type"), nullable=False),
+        sa.Column("performed_by_type", sa.Enum("BOT", "PATIENT", "STAFF", create_type=False, name="performed_by_type"), nullable=False),
         sa.Column("performed_by_id", sa.String(length=255), nullable=True),
         sa.Column("before_state", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("after_state", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
@@ -72,7 +97,7 @@ def upgrade() -> None:
         sa.Column("is_returning", sa.Boolean(), server_default=sa.text("false"), nullable=False),
         sa.Column("no_show_count", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("requires_deposit", sa.Boolean(), server_default=sa.text("false"), nullable=False),
-        sa.Column("channel_preference", sa.Enum("web", "whatsapp", "sms", "voice", name="channel_preference"), server_default="web", nullable=False),
+        sa.Column("channel_preference", sa.Enum("web", "whatsapp", "sms", "voice", create_type=False, name="channel_preference"), server_default="web", nullable=False),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -104,7 +129,7 @@ def upgrade() -> None:
         sa.Column("hashed_password", sa.String(length=255), nullable=False),
         sa.Column("first_name", sa.String(length=100), nullable=False),
         sa.Column("last_name", sa.String(length=100), nullable=False),
-        sa.Column("role", sa.Enum("RECEPTIONIST", "MANAGER", "DENTIST_VIEW", name="staff_role"), nullable=False),
+        sa.Column("role", sa.Enum("RECEPTIONIST", "MANAGER", "DENTIST_VIEW", create_type=False, name="staff_role"), nullable=False),
         sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
         sa.Column("last_login", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -126,9 +151,9 @@ def upgrade() -> None:
         "conversations",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("patient_id", postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column("channel", sa.Enum("web", "whatsapp", "sms", "voice", name="conversation_channel"), nullable=False),
+        sa.Column("channel", sa.Enum("web", "whatsapp", "sms", "voice", create_type=False, name="conversation_channel"), nullable=False),
         sa.Column("session_id", sa.String(length=255), nullable=False),
-        sa.Column("status", sa.Enum("ACTIVE", "WAITING_HUMAN", "HUMAN_TAKEOVER", "COMPLETED", "ABANDONED", name="conversation_status"), server_default="ACTIVE", nullable=False),
+        sa.Column("status", sa.Enum("ACTIVE", "WAITING_HUMAN", "HUMAN_TAKEOVER", "COMPLETED", "ABANDONED", create_type=False, name="conversation_status"), server_default="ACTIVE", nullable=False),
         sa.Column("assigned_staff_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("context", postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=False),
         sa.Column("intent_history", postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'[]'::jsonb"), nullable=False),
@@ -175,8 +200,8 @@ def upgrade() -> None:
         sa.Column("service_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("time_slot_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("start_time", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("status", sa.Enum("PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW", name="appointment_status"), server_default="PENDING", nullable=False),
-        sa.Column("source_channel", sa.Enum("web", "whatsapp", "sms", "voice", "staff", name="appointment_source_channel"), server_default="web", nullable=False),
+        sa.Column("status", sa.Enum("PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW", create_type=False, name="appointment_status"), server_default="PENDING", nullable=False),
+        sa.Column("source_channel", sa.Enum("web", "whatsapp", "sms", "voice", "staff", create_type=False, name="appointment_source_channel"), server_default="web", nullable=False),
         sa.Column("deposit_required", sa.Boolean(), server_default=sa.text("false"), nullable=False),
         sa.Column("deposit_paid", sa.Boolean(), server_default=sa.text("false"), nullable=False),
         sa.Column("deposit_amount", sa.Numeric(precision=10, scale=2), nullable=True),
@@ -211,7 +236,7 @@ def upgrade() -> None:
         "conversation_turns",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("conversation_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("role", sa.Enum("user", "assistant", "system", name="conversation_role"), nullable=False),
+        sa.Column("role", sa.Enum("user", "assistant", "system", create_type=False, name="conversation_role"), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("intent", sa.String(length=120), nullable=True),
         sa.Column("confidence_score", sa.Float(), nullable=True),
@@ -230,9 +255,9 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("patient_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("appointment_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("type", sa.Enum("CONFIRM", "REMINDER_48H", "REMINDER_24H", "REMINDER_2H", "CANCELLATION", "RESCHEDULE", name="notification_type"), nullable=False),
-        sa.Column("channel", sa.Enum("web", "whatsapp", "sms", "voice", name="notification_channel"), nullable=False),
-        sa.Column("status", sa.Enum("PENDING", "SENT", "FAILED", "DELIVERED", name="notification_status"), server_default="PENDING", nullable=False),
+        sa.Column("type", sa.Enum("CONFIRM", "REMINDER_48H", "REMINDER_24H", "REMINDER_2H", "CANCELLATION", "RESCHEDULE", create_type=False, name="notification_type"), nullable=False),
+        sa.Column("channel", sa.Enum("web", "whatsapp", "sms", "voice", create_type=False, name="notification_channel"), nullable=False),
+        sa.Column("status", sa.Enum("PENDING", "SENT", "FAILED", "DELIVERED", create_type=False, name="notification_status"), server_default="PENDING", nullable=False),
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("external_id", sa.String(length=255), nullable=True),
