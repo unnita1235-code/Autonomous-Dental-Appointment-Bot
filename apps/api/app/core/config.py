@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from functools import lru_cache
 from typing import Self
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
     environment: str = Field(default="development")
     debug: bool = Field(default=True)
     api_v1_prefix: str = Field(default="/api/v1")
-    cors_origins: list[str] = Field(default_factory=lambda: ["*"])
+    cors_origins: str | list[str] = Field(default_factory=lambda: ["*"])
 
     secret_key: str = Field(default="change-me")
     access_token_expire_minutes: int = Field(default=30)
@@ -57,7 +58,7 @@ class Settings(BaseSettings):
     google_redirect_uri: str | None = Field(default=None)
     google_calendar_refresh_token: str | None = Field(default=None)
 
-    allowed_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
+    allowed_hosts: str | list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
     rate_limit_enabled: bool = Field(default=True)
     rate_limit_per_minute: int = Field(default=60)
     log_level: str = Field(default="INFO")
@@ -80,10 +81,33 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v: object) -> object:
+    def parse_cors_origins(cls, v: object) -> list[str]:
         if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
             return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+        if isinstance(v, list):
+            return v
+        return ["*"]
+
+    @field_validator("allowed_hosts", mode="before")
+    @classmethod
+    def parse_allowed_hosts(cls, v: object) -> list[str]:
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+            return [host.strip() for host in v.split(",") if host.strip()]
+        if isinstance(v, list):
+            return v
+        return ["localhost", "127.0.0.1"]
 
     @field_validator("database_url", mode="before")
     @classmethod
