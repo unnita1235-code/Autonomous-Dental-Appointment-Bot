@@ -24,4 +24,4 @@ EXPOSE 8000
 
 # Pre-flight config check runs at container start.
 # Bypass with: docker run -e SKIP_CONFIG_CHECK=1 ...
-CMD ["sh", "-c", "cd /app && python -m app._diag"]
+CMD ["sh", "-c", "cd /app && uvicorn app.main:fastapi_app --host 0.0.0.0 --port ${PORT:-8000}"]
