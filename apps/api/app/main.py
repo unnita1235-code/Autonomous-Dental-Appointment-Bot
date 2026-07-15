@@ -1,3 +1,7 @@
+"""FastAPI application entry point."""
+import sys
+print("=== main.py START ===", flush=True)
+
 from contextlib import asynccontextmanager
 import logging
 from typing import AsyncGenerator
@@ -8,21 +12,28 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+print("=== main.py: imports done ===", flush=True)
+
 import app.schemas  # noqa: F401 - must be imported before api_v1_router
+print("=== main.py: schemas imported ===", flush=True)
 from app.api.v1.router import api_v1_router
+print("=== main.py: router imported ===", flush=True)
 from app.core.config import get_settings
 from app.core.middleware import RequestIDMiddleware, add_security_middleware
 from app.core.rate_limit import limiter
 from app.core.socketio import setup_socketio_app
 
+print("=== main.py: all imports done ===", flush=True)
+
 settings = get_settings()
+print("=== main.py: settings loaded ===", flush=True)
 
 fastapi_app = FastAPI(
     title=settings.project_name,
     version="0.1.0",
 )
+print("=== main.py: FastAPI created ===", flush=True)
 
-# CORS middleware configuration
 fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -34,14 +45,17 @@ fastapi_app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+print("=== main.py: CORS middleware added ===", flush=True)
 
 fastapi_app.add_middleware(RequestIDMiddleware)
 add_security_middleware(fastapi_app)
 fastapi_app.state.limiter = limiter
-fastapi_app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+fastapi_app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 fastapi_app.add_middleware(SlowAPIMiddleware)
+print("=== main.py: middleware done ===", flush=True)
 
 fastapi_app.include_router(api_v1_router, prefix="/api/v1")
+print("=== main.py: router included ===", flush=True)
 
 
 @fastapi_app.get("/")
@@ -89,5 +103,7 @@ async def metrics() -> bytes:
     return metrics_output()
 
 
+print("=== main.py: setting up socketio ===", flush=True)
 # Setup Socket.IO
 app = setup_socketio_app(fastapi_app)
+print("=== main.py: END ===", flush=True)
