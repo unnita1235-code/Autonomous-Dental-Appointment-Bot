@@ -78,6 +78,14 @@ fastapi_app.add_middleware(SlowAPIMiddleware)
 fastapi_app.include_router(api_v1_router, prefix="/api/v1")
 
 
+@fastapi_app.get("/health")
+async def health_root() -> dict[str, object]:
+    return {"success": True, "data": {"status": "alive", "service": "api"}, "error": None}
+
+@fastapi_app.get("/healthz")
+async def health_z() -> dict[str, str]:
+    return {"status": "ok"}
+
 @fastapi_app.get("/health/live")
 async def health_live() -> dict[str, object]:
     return {
