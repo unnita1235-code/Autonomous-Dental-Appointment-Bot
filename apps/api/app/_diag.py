@@ -70,6 +70,36 @@ if results.get("app.main import") == "OK":
         results["app.main:app"] = f"FAIL: {type(e).__name__}: {e}"
         results["app.main_app_tb"] = tb[-2000:]
 
+# Manually run the lifespan startup to catch any runtime errors
+if results.get("app.main import") == "OK":
+    try:
+        from app.main import lifespan, setup_logging
+        # Test setup_logging (runs first in lifespan)
+        setup_logging()
+        results["setup_logging"] = "OK"
+    except Exception as e:
+        tb = traceback.format_exc()
+        results["setup_logging"] = f"FAIL: {type(e).__name__}: {e}"
+        results["setup_logging_tb"] = tb[-2000:]
+
+    try:
+        from app.main import create_all_tables
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(create_all_tables())
+        loop.close()
+        results["create_all_tables"] = "OK"
+    except Exception as e:
+        tb = traceback.format_exc()
+        results["create_all_tables"] = f"FAIL: {type(e).__name__}: {e}"
+        results["create_all_tables_tb"] = tb[-2000:]
+
+    # Test metrics import (happens in lifespan)
+    try_import("app.core.metrics", "app.core.metrics")
+    # Test sentry import (happens in lifespan)
+    try_import("app.core.sentry", "app.core.sentry")
+
 app = FastAPI()
 
 @app.get("/health/live")
