@@ -85,6 +85,15 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def ensure_async_driver(cls, v: object) -> object:
+        if isinstance(v, str) and v.startswith("postgresql://"):
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if isinstance(v, str) and v.startswith("postgresql+psycopg2://"):
+            v = v.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+        return v
+
     @model_validator(mode="after")
     def production_safeguards(self) -> Self:
         if self.environment != "production":
