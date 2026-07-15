@@ -23,8 +23,6 @@ from app.schemas.notification import NotificationCreate, NotificationResponse
 from app.schemas.patient import PatientBrief, PatientCreate, PatientResponse, PatientUpdate
 from app.schemas.slot import AvailableSlotGroup, AvailableSlotsRequest, AvailableSlotsResponse, TimeSlotResponse
 
-ResponseEnvelope.model_rebuild()
-
 __all__ = [
     "AppointmentBrief",
     "AppointmentCreate",

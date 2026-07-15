@@ -107,4 +107,4 @@ __all__ = [
     "SuccessResponse",
 ]
 
-ResponseEnvelope.model_rebuild()
+# ResponseEnvelope.model_rebuild()  # removed - causes Generic forward-ref issues

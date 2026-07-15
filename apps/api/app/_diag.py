@@ -11,7 +11,7 @@ def try_import(name, module_path):
     except Exception as e:
         tb = traceback.format_exc()
         results[name] = f"FAIL: {type(e).__name__}: {e}"
-        results[name + "_tb"] = tb[-600:]
+        results[name + "_tb"] = tb[-2000:]
 
 # Test imports in the same order as main.py
 try_import("app.core.config", "app.core.config")
