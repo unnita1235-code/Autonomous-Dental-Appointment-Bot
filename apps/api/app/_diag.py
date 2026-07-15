@@ -1,4 +1,4 @@
-"""Diagnostic: test imports of main.py dependencies one by one."""
+"""Diagnostic: test imports one by one."""
 import sys, traceback, json, os, uvicorn, importlib
 from fastapi import FastAPI
 
@@ -11,7 +11,7 @@ def try_import(name, module_path):
     except Exception as e:
         tb = traceback.format_exc()
         results[name] = f"FAIL: {type(e).__name__}: {e}"
-        results[name + "_tb"] = tb[-500:]
+        results[name + "_tb"] = tb[-600:]
 
 # Test imports in the same order as main.py
 try_import("app.core.config", "app.core.config")
@@ -24,10 +24,32 @@ try_import("app.core.socketio", "app.core.socketio")
 try_import("app.core.security", "app.core.security")
 try_import("app.models.base", "app.models.base")
 try_import("app.schemas", "app.schemas")
-try_import("app.api.v1.router", "app.api.v1.router")
 
-# Now try importing the full main module
-try_import("app.main", "app.main")
+# Test each route module individually
+try_import("app.api.v1.routes.auth", "app.api.v1.routes.auth")
+try_import("app.api.v1.routes.patients", "app.api.v1.routes.patients")
+try_import("app.api.v1.routes.slots", "app.api.v1.routes.slots")
+try_import("app.api.v1.routes.appointments", "app.api.v1.routes.appointments")
+try_import("app.api.v1.routes.conversations", "app.api.v1.routes.conversations")
+try_import("app.api.v1.routes.webhooks", "app.api.v1.routes.webhooks")
+try_import("app.api.v1.routes.analytics", "app.api.v1.routes.analytics")
+try_import("app.api.v1.routes.staff", "app.api.v1.routes.staff")
+try_import("app.api.v1.routes.config_check", "app.api.v1.routes.config_check")
+try_import("app.api.v1.routes.dentists", "app.api.v1.routes.dentists")
+try_import("app.api.v1.routes.services", "app.api.v1.routes.services")
+
+# Check if schemas' model_rebuild caused issues
+try:
+    from app.schemas import ResponseEnvelope
+    results["ResponseEnvelope import"] = "OK"
+except Exception as e:
+    results["ResponseEnvelope import"] = f"FAIL: {e}"
+
+try:
+    from app.schemas.conversation import ConversationResponse, TurnResponse
+    results["ConversationResponse import"] = "OK"
+except Exception as e:
+    results["ConversationResponse import"] = f"FAIL: {e}"
 
 app = FastAPI()
 
