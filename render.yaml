@@ -23,8 +23,6 @@ services:
           type: redis
           name: dental-bot-redis
           property: connectionString
-      - key: PORT
-        value: "8000"
       - key: ENVIRONMENT
         value: production
       - key: DEBUG
