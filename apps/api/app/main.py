@@ -22,21 +22,14 @@ from app.schemas import ResponseEnvelope
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Rebuild ResponseEnvelope at module level after all imports are complete
-try:
-    ResponseEnvelope.model_rebuild(force=True)
-except Exception as _exc:
-    logger.warning("ResponseEnvelope model_rebuild failed: %s", _exc)
-
-
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging()
-    await create_all_tables()
-    import app.schemas  # noqa: F401
+    try:
+        await create_all_tables()
+    except Exception as exc:
+        logger.warning("Database table creation failed; continuing: %s", exc)
     import app.core.metrics  # noqa: F401
-
-    ResponseEnvelope.model_rebuild(force=True)
     redis_ready = True
     try:
         await init_redis()
