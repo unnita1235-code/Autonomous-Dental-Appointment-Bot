@@ -1,3 +1,5 @@
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit-brightgreen?style=for-the-badge)](https://autonomous-dental-appointment-bot.vercel.app/) [![Backend](https://img.shields.io/badge/Backend-Render-46E3B7?style=for-the-badge)](https://render.com) [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+
 # Autonomous Dental Appointment Bot
 
 Production monorepo for a dental clinic appointment automation platform.
