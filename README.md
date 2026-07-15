@@ -2,7 +2,7 @@
 
 ## Live Preview
 
-[![Autonomous Dental Appointment Bot](https://image.thum.io/get/width/1280/https://autonomous-dental-appointment-bot.vercel.app/)](https://autonomous-dental-appointment-bot.vercel.app/)
+[![Autonomous Dental Appointment Bot](https://api.microlink.io/?url=https://autonomous-dental-appointment-bot.vercel.app/&screenshot=true&meta=false&embed=screenshot.url)](https://autonomous-dental-appointment-bot.vercel.app/)
 
 
 # Autonomous Dental Appointment Bot
