@@ -2,6 +2,8 @@
 import os
 import sys
 import traceback
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 error_log_path = "/tmp/startup_errors.log"
 
@@ -21,15 +23,25 @@ except Exception:
     print(tb, flush=True)
     sys.exit(1)
 
-# Try to get the fastapi_app vs socketio-wrapped app
+# Override lifespan with a no-op to isolate lifespan failures
+@asynccontextmanager
+async def noop_lifespan(_) -> AsyncGenerator[None, None]:
+    yield
 try:
-    from app.main import fastapi_app
-    log_error("Got fastapi_app from app.main")
+    app.main.fastapi_app.router.lifespan_context = noop_lifespan
+    log_error("Replaced lifespan with no-op")
 except Exception as e:
-    log_error(f"Cannot get fastapi_app: {e}")
-    fastapi_app = None
+    log_error(f"Cannot replace lifespan: {e}")
 
-log_error("Starting uvicorn on fastapi_app...")
+# Read error log at startup
+try:
+    with open(error_log_path) as f:
+        log_contents = f.read()
+    print(f"--- Startup log ---\n{log_contents}\n--- End startup log ---", flush=True)
+except Exception:
+    pass
+
+log_error("Starting uvicorn...")
 import uvicorn
 port = int(os.environ.get("PORT", 8000))
-uvicorn.run(fastapi_app, host="0.0.0.0", port=port, log_level="debug")
+uvicorn.run(app.main.fastapi_app, host="0.0.0.0", port=port, log_level="debug")
