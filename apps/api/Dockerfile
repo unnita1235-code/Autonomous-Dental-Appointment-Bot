@@ -24,4 +24,4 @@ EXPOSE 8000
 
 # Pre-flight config check runs at container start.
 # Bypass with: docker run -e SKIP_CONFIG_CHECK=1 ...
-CMD ["sh", "-c", "cd /app && python -m app._diag"]
+CMD ["sh", "-c", "cd /app && python run.py"]
