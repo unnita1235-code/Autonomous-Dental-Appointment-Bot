@@ -1,6 +1,5 @@
 """Conversation domain schemas."""
 
-from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
@@ -82,7 +81,7 @@ class ConversationResponse(BaseModel):
     assigned_staff_id: UUID | None = None
     context: ConversationContext
     intent_history: list[dict[str, Any]]
-    turns: list[TurnResponse] = []
+    turns: list["TurnResponse"] = []
     started_at: datetime
     ended_at: datetime | None = None
     created_at: datetime
