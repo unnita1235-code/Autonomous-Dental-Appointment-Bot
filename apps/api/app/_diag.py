@@ -51,6 +51,25 @@ try:
 except Exception as e:
     results["ConversationResponse import"] = f"FAIL: {e}"
 
+# Test the full app.main module (simulates what uvicorn app.main:app does)
+try:
+    import app.main
+    results["app.main import"] = "OK"
+except Exception as e:
+    tb = traceback.format_exc()
+    results["app.main import"] = f"FAIL: {type(e).__name__}: {e}"
+    results["app.main_tb"] = tb[-2000:]
+
+# Test that we can actually get the ASGI app
+if results.get("app.main import") == "OK":
+    try:
+        from app.main import app
+        results["app.main:app"] = "OK"
+    except Exception as e:
+        tb = traceback.format_exc()
+        results["app.main:app"] = f"FAIL: {type(e).__name__}: {e}"
+        results["app.main_app_tb"] = tb[-2000:]
+
 app = FastAPI()
 
 @app.get("/health/live")
