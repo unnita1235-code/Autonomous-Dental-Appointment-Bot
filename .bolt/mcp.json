@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "shaders": {
+      "enabled": true
+    },
+    "github": {
+      "enabled": true
+    }
+  }
+}
