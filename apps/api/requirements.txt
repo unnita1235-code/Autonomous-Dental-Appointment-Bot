@@ -8,7 +8,7 @@ asyncpg==0.29.0
 aioredis==2.0.1
 celery==5.3.6
 redis==5.0.3
-anthropic==0.25.0
+anthropic==0.116.0
 deepgram-sdk==3.2.7
 pinecone-client==3.2.2
 twilio==9.0.4
