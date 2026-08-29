@@ -36,7 +36,7 @@ jobs:
           [[ -z "${{ secrets.VERCEL_ORG_ID }}" ]] && echo "::error::Secret VERCEL_ORG_ID is missing" && exit 1
           [[ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]] && echo "::error::Secret VERCEL_PROJECT_ID is missing" && exit 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: npm
