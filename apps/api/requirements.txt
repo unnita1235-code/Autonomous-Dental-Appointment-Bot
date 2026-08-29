@@ -20,7 +20,7 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.9
 httpx==0.27.0
-websockets==12.0
+websockets==16.0
 python-socketio[asyncio_client]==5.16.1
 python-dotenv==1.0.1
 boto3==1.34.87
