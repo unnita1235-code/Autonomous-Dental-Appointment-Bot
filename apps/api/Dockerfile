@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS builder
+FROM python:3.14-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -9,7 +9,7 @@ COPY apps/api/requirements.txt /tmp/requirements.txt
 RUN python -m pip install --upgrade pip \
     && python -m pip install --prefix=/install --no-cache-dir -r /tmp/requirements.txt
 
-FROM python:3.11-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
