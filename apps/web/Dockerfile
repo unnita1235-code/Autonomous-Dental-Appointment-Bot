@@ -1,5 +1,5 @@
 # Multi-stage build for Next.js application
-FROM node:20-alpine AS builder
+FROM node:25-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -22,7 +22,7 @@ ENV NODE_ENV=production
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS runtime
+FROM node:25-alpine AS runtime
 
 # Set working directory
 WORKDIR /app
