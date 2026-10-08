@@ -57,7 +57,7 @@ export default function LoginPage(): JSX.Element {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-light via-surface to-white px-4 py-10">
+    <main id="main-content" className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-light via-surface to-white px-4 py-10">
       <section className="w-full max-w-md rounded-2xl border border-primary/20 bg-white p-8 shadow-lg">
         <p className="font-heading text-sm font-semibold uppercase tracking-wider text-primary">
           Staff Portal

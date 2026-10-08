@@ -24,11 +24,17 @@ class ConversationContext(TypedDict, total=False):
 
 
 class ConversationCreate(BaseModel):
-    patient_id: UUID | None = None
+    # NOTE: patient_id and assigned_staff_id are intentionally NOT accepted
+    # from the client. This endpoint is public, so accepting them would let any
+    # anonymous caller bind a conversation to an arbitrary patient (or staff
+    # member). Conversations start anonymous and become patient-bound only
+    # after OTP verification. The fields remain here for backwards-compatible
+    # deserialisation but are ignored by the route.
+    patient_id: UUID | None = Field(default=None, exclude=True)
     channel: ConversationChannel
     session_id: str = Field(min_length=1, max_length=255)
     status: ConversationStatus = ConversationStatus.ACTIVE
-    assigned_staff_id: UUID | None = None
+    assigned_staff_id: UUID | None = Field(default=None, exclude=True)
     context: ConversationContext | None = None
     intent_history: list[dict[str, Any]] | None = None
     started_at: datetime

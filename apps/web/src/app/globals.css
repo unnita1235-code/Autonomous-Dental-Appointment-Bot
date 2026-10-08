@@ -1,25 +1,163 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   DentalFlow AI Design System — CSS Variables
+   Source: Stitch design tokens (patient + staff modes)
+   ============================================================ */
+
 :root {
-  --color-primary: #1A6B8A;
-  --color-primary-hover: #155a75;
-  --color-primary-light: #e8f4f8;
-  --color-accent: #2EC4B6;
-  --color-accent-hover: #25a99c;
-  --color-surface: #F7FAFC;
-  --color-success: #38A169;
-  --color-warning: #DD6B20;
-  --color-error: #E53E3E;
-  --color-muted: #718096;
+  /* Patient Experience — Primary Palette */
+  --color-patient-primary: #004ac6;
+  --color-patient-primary-hover: #003ea8;
+  --color-patient-primary-container: #2563eb;
+  --color-patient-primary-fixed: #dbe1ff;
+  --color-patient-primary-fixed-dim: #b4c5ff;
+  --color-patient-on-primary: #ffffff;
+  --color-patient-on-primary-fixed: #00174b;
+  --color-patient-on-primary-fixed-variant: #003ea8;
+
+  /* Patient Experience — Secondary (Mint/AI) Palette */
+  --color-patient-secondary: #006c49;
+  --color-patient-secondary-hover: #005236;
+  --color-patient-secondary-container: #6cf8bb;
+  --color-patient-secondary-fixed: #6ffbbe;
+  --color-patient-secondary-fixed-dim: #4edea3;
+  --color-patient-on-secondary: #ffffff;
+  --color-patient-on-secondary-fixed: #002113;
+  --color-patient-on-secondary-fixed-variant: #005236;
+
+  /* Patient Experience — Tertiary (Warning/Amber) Palette */
+  --color-patient-tertiary: #784b00;
+  --color-patient-tertiary-container: #996100;
+  --color-patient-tertiary-fixed: #ffddb8;
+  --color-patient-tertiary-fixed-dim: #ffb95f;
+  --color-patient-on-tertiary: #ffffff;
+  --color-patient-on-tertiary-fixed: #2a1700;
+  --color-patient-on-tertiary-fixed-variant: #653e00;
+
+  /* Patient Experience — Error Palette */
+  --color-patient-error: #ba1a1a;
+  --color-patient-error-container: #ffdad6;
+  --color-patient-on-error: #ffffff;
+  --color-patient-on-error-container: #93000a;
+
+  /* Patient Experience — Surface Scale */
+  --color-patient-surface-lowest: #ffffff;
+  --color-patient-surface-low: #f2f3ff;
+  --color-patient-surface: #eaedff;
+  --color-patient-surface-high: #e2e7ff;
+  --color-patient-surface-highest: #dae2fd;
+  --color-patient-surface-variant: #dae2fd;
+
+  /* Patient Experience — Text & Borders */
+  --color-patient-on-surface: #131b2e;
+  --color-patient-on-surface-variant: #434655;
+  --color-patient-outline: #737686;
+  --color-patient-outline-variant: #c3c6d7;
+  --color-patient-background: #faf8ff;
+  --color-patient-on-background: #131b2e;
+
+  /* Staff Command — Primary Palette */
+  --color-staff-primary: #2563EB;
+  --color-staff-primary-hover: #1D4ED8;
+  --color-staff-primary-container: #DBEAFE;
+  --color-staff-on-primary: #ffffff;
+  --color-staff-on-primary-container: #1E3A8A;
+
+  /* Staff Command — AI Palette */
+  --color-staff-ai: #7C3AED;
+  --color-staff-ai-hover: #6D28D9;
+  --color-staff-ai-container: #F5F3FF;
+  --color-staff-on-ai: #ffffff;
+  --color-staff-on-ai-container: #4C1D95;
+  --color-staff-ai-cyan: #06B6D4;
+  --color-staff-ai-cyan-container: #ECFEFF;
+  --color-staff-on-ai-cyan: #164E63;
+
+  /* Staff Command — Backgrounds */
+  --color-staff-background: #F8FAFC;
+  --color-staff-background-dark: #0F172A;
+  --color-staff-background-rail: #0F172A;
+  --color-staff-background-card: #FFFFFF;
+
+  /* Staff Command — Surfaces */
+  --color-staff-surface: #FFFFFF;
+  --color-staff-surface-variant: #F1F5F9;
+  --color-staff-surface-rail: #0F172A;
+
+  /* Staff Command — Text & Borders */
+  --color-staff-on-surface: #0F172A;
+  --color-staff-on-surface-variant: #475569;
+  --color-staff-on-surface-muted: #94A3B8;
+  --color-staff-border: #E2E8F0;
+  --color-staff-border-dark: #1E293B;
+  --color-staff-border-focus: #2563EB;
+  --color-staff-border-focus-ring: rgba(37, 99, 235, 0.2);
+
+  /* Staff Command — Semantic Colors */
+  --color-staff-success: #10B981;
+  --color-staff-success-container: #ECFDF5;
+  --color-staff-success-border: #A7F3D0;
+  --color-staff-on-success: #ffffff;
+  --color-staff-on-success-container: #065F46;
+
+  --color-staff-warning: #F59E0B;
+  --color-staff-warning-container: #FFFBEB;
+  --color-staff-warning-border: #FDE68A;
+  --color-staff-on-warning: #ffffff;
+  --color-staff-on-warning-container: #92400E;
+
+  --color-staff-error: #EF4444;
+  --color-staff-error-container: #FEF2F2;
+  --color-staff-error-border: #FECACA;
+  --color-staff-on-error: #ffffff;
+  --color-staff-on-error-container: #991B1B;
+
+  --color-staff-urgent: #EF4444;
+  --color-staff-urgent-container: #FEF2F2;
+  --color-staff-on-urgent: #ffffff;
+
+  --color-staff-info: #3B82F6;
+  --color-staff-info-container: #EFF6FF;
+  --color-staff-on-info: #ffffff;
+
+  /* Legacy / Compatibility Aliases */
+  --color-primary: #004ac6;
+  --color-primary-hover: #003ea8;
+  --color-primary-light: #dbe1ff;
+  --color-accent: #006c49;
+  --color-accent-hover: #005236;
+  --color-surface: #faf8ff;
+  --color-success: #006c49;
+  --color-warning: #784b00;
+  --color-error: #ba1a1a;
+  --color-muted: #434655;
 }
+
+/* Dark mode for staff rail (optional, controlled by .dark class) */
+.dark {
+  --color-staff-background: #0F172A;
+  --color-staff-background-dark: #0F172A;
+  --color-staff-surface: #1E293B;
+  --color-staff-surface-variant: #334155;
+  --color-staff-on-surface: #F1F5F9;
+  --color-staff-on-surface-variant: #CBD5E1;
+  --color-staff-on-surface-muted: #94A3B8;
+  --color-staff-border: #334155;
+  --color-staff-border-dark: #1E293B;
+}
+
+/* ============================================================
+   Base Styles & Reset
+   ============================================================ */
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-primary) #e2e8f0;
+  scrollbar-color: var(--color-patient-primary) var(--color-patient-surface-variant);
 }
 
 *::-webkit-scrollbar {
@@ -28,22 +166,288 @@
 }
 
 *::-webkit-scrollbar-track {
-  background: #e2e8f0;
+  background: var(--color-patient-surface-variant);
   border-radius: 9999px;
 }
 
 *::-webkit-scrollbar-thumb {
-  background: var(--color-primary);
+  background: var(--color-patient-primary);
   border-radius: 9999px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--color-patient-surface-variant);
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary-hover);
+  background: var(--color-patient-primary-hover);
 }
 
+/* Focus visible — accessible focus rings */
+*:focus-visible {
+  outline: none;
+  ring: 2px solid var(--color-patient-primary);
+  ring-offset: 2px;
+  ring-offset-color: var(--color-patient-background);
+}
+
+/* Staff mode focus ring */
+.staff-mode *:focus-visible,
+[data-staff-mode="true"] *:focus-visible {
+  ring-color: var(--color-staff-border-focus);
+  ring-offset-color: var(--color-staff-background);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Base typography */
 body {
-  font-family: "DM Sans", sans-serif;
-  background-color: var(--color-surface);
-  color: #1a202c;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  background-color: var(--color-patient-background);
+  color: var(--color-patient-on-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Staff mode body */
+.staff-mode body,
+[data-staff-mode="true"] body {
+  background-color: var(--color-staff-background);
+  color: var(--color-staff-on-surface);
+}
+
+/* Heading font utility */
+.font-heading {
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+/* Body font utility */
+.font-body {
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+/* Mono font utility for AI metrics */
+.font-mono {
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* ============================================================
+   Touch Target Utilities
+   ============================================================ */
+
+.touch-target {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+.touch-target-lg {
+  min-height: 52px;
+  min-width: 52px;
+}
+
+.touch-target-sm {
+  min-height: 36px;
+  min-width: 36px;
+}
+
+/* ============================================================
+   Component Base Classes (for @apply in components)
+   ============================================================ */
+
+/* Button Base */
+.btn-base {
+  @apply inline-flex items-center justify-center font-semibold transition-all duration-200 rounded-full focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Primary Button — Patient (52px pill) */
+.btn-primary {
+  @apply btn-base touch-target-lg bg-patient-primary text-patient-on-primary hover:bg-patient-primary-hover active:scale-[0.98] shadow-md;
+}
+
+/* Primary Button — Staff (36px dense) */
+.btn-primary-staff {
+  @apply btn-base touch-target-sm bg-staff-primary text-staff-on-primary hover:bg-staff-primary-hover active:scale-[0.98] shadow-sm px-4 text-sm;
+}
+
+/* Secondary Button — Patient (52px pill outline) */
+.btn-secondary {
+  @apply btn-base touch-target-lg bg-patient-surface-lowest text-patient-primary border-2 border-patient-primary hover:bg-patient-primary-fixed active:scale-[0.98];
+}
+
+/* Ghost Button — Patient */
+.btn-ghost {
+  @apply btn-base touch-target-lg text-patient-on-surface-variant hover:bg-patient-surface-variant active:scale-[0.98];
+}
+
+/* AI Button — Violet */
+.btn-ai {
+  @apply btn-base touch-target-lg bg-staff-ai text-staff-on-ai hover:bg-staff-ai-hover active:scale-[0.98] shadow-md;
+}
+
+/* Card Base — Patient (relaxed) */
+.card-patient {
+  @apply bg-patient-surface-lowest border border-patient-outline-variant rounded-2xl shadow-elevation-1 hover:shadow-elevation-hover transition-shadow duration-200;
+}
+
+/* Card Base — Staff (compact) */
+.card-staff {
+  @apply bg-staff-surface border border-staff-border rounded-xl shadow-elevation-0 hover:shadow-elevation-1 transition-shadow duration-150;
+}
+
+/* Input Base — Patient (52px, 17px text) */
+.input-patient {
+  @apply w-full touch-target-lg rounded-xl bg-patient-surface-lowest border-1.5 border-patient-outline-variant text-body-md text-patient-on-surface placeholder-patient-on-surface-variant outline-none transition-all duration-150;
+  @apply focus:border-patient-primary focus:ring-2 focus:ring-patient-primary/20 focus:shadow-focus-ring;
+}
+
+/* Input Base — Staff (36px, 13px text) */
+.input-staff {
+  @apply w-full touch-target-sm rounded-md bg-staff-surface border border-staff-border text-sm text-staff-on-surface placeholder-staff-on-surface-muted outline-none transition-all duration-150;
+  @apply focus:border-staff-border-focus focus:ring-2 focus:ring-staff-border-focus-ring focus:shadow-[0_0_0_4px_rgba(37,99,235,0.15)];
+}
+
+/* Badge Base */
+.badge-base {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-medium text-caption;
+}
+
+/* Status Badges */
+.badge-success {
+  @apply badge-base bg-staff-success-container text-staff-on-success-container;
+}
+.badge-warning {
+  @apply badge-base bg-staff-warning-container text-staff-on-warning-container;
+}
+.badge-error {
+  @apply badge-base bg-staff-error-container text-staff-on-error-container;
+}
+.badge-info {
+  @apply badge-base bg-staff-info-container text-staff-on-info;
+}
+.badge-ai {
+  @apply badge-base bg-staff-ai-container text-staff-on-ai-container;
+}
+.badge-ai-cyan {
+  @apply badge-base bg-staff-ai-cyan-container text-staff-on-ai-cyan;
+}
+
+/* Avatar Base */
+.avatar-base {
+  @apply inline-flex items-center justify-center overflow-hidden rounded-full bg-patient-surface-variant;
+}
+
+/* FAB Base */
+.fab-base {
+  @apply fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-[0_10px_25px_-5px_rgba(15,23,42,0.4)] transition-all duration-200;
+  @apply hover:shadow-[0_14px_30px_-5px_rgba(15,23,42,0.5)] hover:-translate-y-0.5 active:scale-95 focus-visible:ring-4 focus-visible:ring-patient-primary/20;
+}
+
+/* FAB Pulse Animation */
+.fab-pulse::before {
+  @apply content-[''] absolute -inset-2 rounded-full bg-patient-primary-container/20 animate-fab-pulse pointer-events-none;
+}
+.fab-pulse::after {
+  @apply content-[''] absolute -inset-1 rounded-full bg-patient-primary-container/15 animate-[fab-pulse_6s_ease-out_infinite] pointer-events-none;
+}
+
+/* Separator / Hairline Divider */
+.separator {
+  @apply h-px bg-patient-outline-variant border-0;
+}
+.separator-staff {
+  @apply h-px bg-staff-border border-0;
+}
+
+/* Tooltip Base */
+.tooltip-base {
+  @apply absolute z-50 px-3 py-2 bg-staff-surface-rail text-staff-on-surface text-caption rounded-xl shadow-elevation-3 whitespace-nowrap;
+}
+.tooltip-base::after {
+  @apply content-[''] absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-4 border-transparent border-t-staff-surface-rail;
+}
+
+/* ============================================================
+   Utility Classes
+   ============================================================ */
+
+/* Gradient text for AI headings */
+.text-gradient-ai {
+  @apply bg-gradient-to-r from-staff-ai to-staff-ai-cyan bg-clip-text text-transparent;
+}
+
+/* AI card glow */
+.ai-card-glow {
+  @apply relative before:absolute before:inset-0 before:rounded-2xl before:shadow-ai-glow before:pointer-events-none before:-z-10;
+}
+
+/* Scrollbar hide */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Text balance for headings */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Line clamp utilities */
+.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Safe-area insets (notched devices / iOS home indicator) */
+.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pl-safe { padding-left: env(safe-area-inset-left, 0px); }
+.pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+
+/* Patient mode container */
+.patient-mode {
+  @apply bg-patient-background text-patient-on-surface;
+}
+
+/* Staff mode container */
+.staff-mode {
+  @apply bg-staff-background text-staff-on-surface;
+}
+
+/* Page container — Patient (centered, max-width) */
+.page-container-patient {
+  @apply max-w-[1140px] mx-auto px-gutter-mobile md:px-gutter py-space-xl;
+}
+
+/* Page container — Staff (full width, rail) */
+.page-container-staff {
+  @apply w-full h-screen overflow-hidden;
+}
+
+/* Section spacing — Patient */
+.section-patient {
+  @apply py-space-xl;
+}
+
+/* Section spacing — Staff */
+.section-staff {
+  @apply py-space-md;
+}
+
+/* Card padding — Patient */
+.card-padding-patient {
+  @apply p-6 md:p-8;
+}
+
+/* Card padding — Staff */
+.card-padding-staff {
+  @apply p-3 md:p-4;
 }

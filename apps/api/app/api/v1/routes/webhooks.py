@@ -12,6 +12,7 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy import select
 from twilio.rest import Client as TwilioClient
 from twilio.twiml.messaging_response import MessagingResponse
+from twilio.twiml.voice_response import Gather, VoiceResponse
 
 from app.api.v1.routes.deps import validate_twilio_request
 from app.core.config import get_settings
@@ -366,33 +367,26 @@ async def twilio_whatsapp_webhook(
 
 @router.post("/twilio/voice")
 async def twilio_voice_webhook(
-    request: Request,
+    payload: dict[str, Any] = Depends(validate_twilio_request),
 ) -> Response:
     """Initial call entry point. Greets and gathers speech."""
-    twiml = MessagingResponse() # Actually we need VoiceResponse, but I'll use raw TwiML string or similar
-    # Twilio SDK has VoiceResponse, but it might not be imported.
-    # I'll check imports.
-    from twilio.twiml.voice_response import VoiceResponse, Gather
-    
     response = VoiceResponse()
     response.say("Hello! This is DentaPlan AI. How can I help you today?")
     gather = Gather(input='speech', action='/api/v1/webhooks/twilio/voice/gather', method='POST')
     response.append(gather)
     # If they don't say anything
     response.say("I'm sorry, I didn't catch that. Goodbye.")
-    
+
     return Response(content=str(response), media_type="application/xml")
 
 
 @router.post("/twilio/voice/gather")
 async def twilio_voice_gather(
-    request: Request,
+    payload: dict[str, Any] = Depends(validate_twilio_request),
     db: Any = Depends(get_db),
 ) -> Response:
     """Handle transcription results from Twilio Gather."""
-    from twilio.twiml.voice_response import VoiceResponse, Gather
-    
-    form_data = await request.form()
+    form_data = payload
     speech_result = str(form_data.get("SpeechResult", "")).strip()
     from_number = _normalize_phone(str(form_data.get("From", "")).replace("whatsapp:", ""))
     

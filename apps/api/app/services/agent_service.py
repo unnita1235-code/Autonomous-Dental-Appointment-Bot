@@ -14,7 +14,7 @@ from app.ai.agent import DentalAgent
 from app.ai.schemas import AgentMessage, AgentResponse, AgentToolCall
 from app.core.config import get_settings
 from app.core.metrics import Timer
-from app.models.appointment import AppointmentSourceChannel
+from app.models.appointment import Appointment, AppointmentSourceChannel
 from app.models.audit_log import PerformedByType
 from app.models.conversation import Conversation, ConversationStatus
 from app.models.dentist import Dentist
@@ -170,7 +170,8 @@ class AgentService:
                 first_name=call.arguments["first_name"],
                 last_name=call.arguments["last_name"],
                 email=call.arguments["email"],
-                phone=call.arguments["phone"]
+                phone=call.arguments["phone"],
+                conversation_id=conversation_id,
             )
 
         elif call.tool_name == "get_upcoming_appointments":
@@ -214,15 +215,33 @@ class AgentService:
             return {"appointment_id": str(appointment.id), "status": appointment.status.value}
 
         elif call.tool_name == "cancel_appointment":
+            if not patient_id:
+                return {
+                    "error": (
+                        "Verification is required before changing an appointment. "
+                        "Ask the patient to verify their mobile number."
+                    )
+                }
+            if not await self._assert_owns_appointment(UUID(call.arguments["appointment_id"]), patient_id):
+                return {"error": "That appointment could not be found."}
             appointment = await self.appointment_service.cancel_appointment(
                 appointment_id=UUID(call.arguments["appointment_id"]),
                 reason=call.arguments["reason"],
                 cancelled_by_type=PerformedByType.PATIENT,
-                cancelled_by_id=str(patient_id) if patient_id else None
+                cancelled_by_id=str(patient_id)
             )
             return {"success": True, "appointment_id": str(appointment.id), "status": appointment.status.value}
 
         elif call.tool_name == "reschedule_appointment":
+            if not patient_id:
+                return {
+                    "error": (
+                        "Verification is required before changing an appointment. "
+                        "Ask the patient to verify their mobile number."
+                    )
+                }
+            if not await self._assert_owns_appointment(UUID(call.arguments["appointment_id"]), patient_id):
+                return {"error": "That appointment could not be found."}
             appointment = await self.appointment_service.reschedule_appointment(
                 appointment_id=UUID(call.arguments["appointment_id"]),
                 new_slot_id=UUID(call.arguments["new_slot_id"]),
@@ -259,27 +278,101 @@ class AgentService:
 
         raise ValueError(f"Unknown tool: {call.tool_name}")
 
-    async def _upsert_patient(self, first_name: str, last_name: str, email: str, phone: str) -> dict[str, str]:
-        stmt = select(Patient).where((Patient.email == email) | (Patient.phone == phone))
+    async def _assert_owns_appointment(self, appointment_id: UUID, patient_id: UUID) -> bool:
+        """Confirm an appointment belongs to the authenticated patient.
+
+        Authorisation is enforced here in application code rather than trusted
+        from the model: the appointment UUID arrives as LLM tool output, which
+        is attacker-influenced text. Returns False rather than raising so the
+        caller can answer with a generic message that does not confirm the
+        appointment exists.
+        """
+        stmt = select(Appointment.id).where(
+            Appointment.id == appointment_id,
+            Appointment.patient_id == patient_id,
+        )
         result = await self.db.execute(stmt)
-        patient = result.scalar_one_or_none()
+        return result.scalar_one_or_none() is not None
 
-        if patient:
-            patient.first_name = first_name
-            patient.last_name = last_name
-            patient.email = email
-            patient.phone = phone
-            action = "updated"
-        else:
-            patient = Patient(first_name=first_name, last_name=last_name, email=email, phone=phone)
-            self.db.add(patient)
-            action = "created"
+    async def _upsert_patient(
+        self,
+        first_name: str,
+        last_name: str,
+        email: str,
+        phone: str,
+        conversation_id: UUID | None = None,
+    ) -> dict[str, str]:
+        """Record provisional contact details for an anonymous visitor.
 
+        Security contract
+        -----------------
+        This runs inside a *public* chat, so every argument here is
+        attacker-controlled text. It therefore must never:
+
+          * match an existing Patient on the supplied email/phone (that was the
+            patient-impersonation vector: claiming a victim's address returned
+            the victim's patient_id and unlocked their appointments),
+          * modify any existing Patient row,
+          * hand back a patient_id that downstream tools could treat as
+            authenticated identity.
+
+        Provisional details are recorded on the conversation's context JSON
+        instead. A Patient row is created only once the visitor proves control
+        of the phone number via the patient OTP flow, which is the sole path
+        that establishes identity.
+        """
+        provisional = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "phone": phone,
+        }
+
+        if conversation_id is None:
+            return {
+                "status": "pending_verification",
+                "detail": (
+                    "Contact details recorded for this conversation. "
+                    "Verify the mobile number to access patient records."
+                ),
+            }
+
+        stmt = (
+            update(Conversation)
+            .where(Conversation.id == conversation_id)
+            .values(context=Conversation.context.concat({"provisional_patient": provisional}))
+        )
+        await self.db.execute(stmt)
         await self.db.commit()
-        await self.db.refresh(patient)
-        return {"patient_id": str(patient.id), "action": action}
+
+        return {
+            "status": "pending_verification",
+            "detail": (
+                "Contact details recorded for this conversation. "
+                "Verify the mobile number to access patient records."
+            ),
+        }
 
     async def _persist_patient_id(self, conversation_id: UUID, patient_id: UUID) -> None:
+        """Bind a conversation to an *authenticated* patient.
+
+        Callers must only reach this from a verified OTP flow. The guard below
+        refuses to overwrite an existing binding, so a conversation cannot be
+        re-pointed at a different patient later.
+        """
+        current = await self.db.execute(
+            select(Conversation.patient_id).where(Conversation.id == conversation_id)
+        )
+        existing = current.scalar_one_or_none()
+        if existing is not None and existing != patient_id:
+            logger.warning(
+                "Refusing to rebind conversation %s from patient %s to %s",
+                conversation_id,
+                existing,
+                patient_id,
+            )
+            return
+
         stmt = update(Conversation).where(Conversation.id == conversation_id).values(patient_id=patient_id)
         await self.db.execute(stmt)
         await self.db.commit()
