@@ -16,6 +16,11 @@ htmlcov/
 .venv/
 venv/
 
+# Local databases (SQLite dev artifacts)
+*.db
+*.sqlite
+*.sqlite3
+
 # Node / Next.js
 node_modules/
 .next/
@@ -25,6 +30,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# TypeScript incremental build cache
+*.tsbuildinfo
 
 # Environment files
 .env

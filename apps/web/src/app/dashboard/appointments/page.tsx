@@ -311,7 +311,7 @@ export default function AppointmentsPage(): JSX.Element {
                         void updateStatus(item.id, "CONFIRMED");
                       }}
                     >
-                      Reschedule
+                      Confirm
                     </button>
                   </div>
                 </td>
@@ -398,7 +398,7 @@ export default function AppointmentsPage(): JSX.Element {
                   className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-primary hover:text-primary"
                   onClick={() => void updateStatus(selected.id, "CONFIRMED")}
                 >
-                  Reschedule flow
+                  Confirm appointment
                 </button>
               </div>
             </div>

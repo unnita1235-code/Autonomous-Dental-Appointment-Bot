@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = Field(default=30)
     refresh_token_expire_days: int = Field(default=7)
 
+    # Patient identity (SMS OTP).
+    # Staff and patient credentials are separate classes; these control only
+    # the patient side.
+    patient_access_token_expire_minutes: int = Field(default=60)
+    patient_otp_ttl_seconds: int = Field(default=300)
+    patient_otp_code_length: int = Field(default=6)
+    patient_otp_max_attempts: int = Field(default=5)
+    patient_otp_resend_cooldown_seconds: int = Field(default=60)
+    patient_otp_attempt_window_seconds: int = Field(default=900)
+
     database_url: str = Field(default="sqlite+aiosqlite:///./dev.db")
     redis_url: str = Field(default="redis://localhost:6379/0")
     celery_broker_url: str = Field(default="redis://localhost:6379/1")

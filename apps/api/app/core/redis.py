@@ -83,6 +83,62 @@ async def release_slot_lock(slot_id: str, session_id: str) -> bool:
     return bool(result)
 
 
+async def store_patient_otp(phone: str, code_digest: str, ttl_seconds: int) -> bool:
+    """Persist a keyed OTP digest for a verified-phone candidate.
+
+    Only the digest is stored, never the code itself, and the key is scoped by
+    normalised phone so a Redis dump does not reveal live codes.
+    """
+    if redis_client is None:
+        raise RuntimeError("Redis client is not initialized.")
+    key = f"patient_otp:{phone}"
+    return bool(await redis_client.set(key, code_digest, ex=ttl_seconds))
+
+
+async def get_patient_otp(phone: str) -> str | None:
+    if redis_client is None:
+        raise RuntimeError("Redis client is not initialized.")
+    return await redis_client.get(f"patient_otp:{phone}")
+
+
+async def delete_patient_otp(phone: str) -> bool:
+    if redis_client is None:
+        raise RuntimeError("Redis client is not initialized.")
+    return bool(await redis_client.delete(f"patient_otp:{phone}"))
+
+
+async def get_patient_otp_attempts(phone: str) -> int:
+    if redis_client is None:
+        raise RuntimeError("Redis client is not initialized.")
+    raw = await redis_client.get(f"patient_otp_attempts:{phone}")
+    if raw is None:
+        return 0
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
+
+
+async def bump_patient_otp_attempts(phone: str, window_seconds: int) -> int:
+    """Increment and return the failed-verification count for a phone."""
+    if redis_client is None:
+        raise RuntimeError("Redis client is not initialized.")
+    key = f"patient_otp_attempts:{phone}"
+    pipe = redis_client.pipeline()
+    pipe.incr(key)
+    pipe.expire(key, window_seconds)
+    results = await pipe.execute()
+    return int(results[0])
+
+
+async def set_patient_otp_resend_lock(phone: str, ttl_seconds: int) -> bool:
+    """Rate-limit OTP sends per phone. Returns False if already locked."""
+    if redis_client is None:
+        raise RuntimeError("Redis client is not initialized.")
+    key = f"patient_otp_resend:{phone}"
+    return bool(await redis_client.set(key, "1", ex=ttl_seconds, nx=True))
+
+
 async def store_refresh_token(jti: str, sub: str, ttl_seconds: int) -> bool:
     if redis_client is None:
         raise RuntimeError("Redis client is not initialized.")
@@ -132,4 +188,10 @@ __all__ = [
     "revoke_refresh_token",
     "mark_webhook_processed",
     "is_webhook_processed",
+    "store_patient_otp",
+    "get_patient_otp",
+    "delete_patient_otp",
+    "get_patient_otp_attempts",
+    "bump_patient_otp_attempts",
+    "set_patient_otp_resend_lock",
 ]

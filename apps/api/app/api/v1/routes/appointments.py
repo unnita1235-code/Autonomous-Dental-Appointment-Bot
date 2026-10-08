@@ -10,12 +10,17 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.v1.routes.deps import get_current_staff_user
+from app.api.v1.routes.deps import (
+    get_current_patient_user_optional,
+    get_current_staff_user,
+    optional_staff_user,
+)
 from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.redis import get_redis
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.audit_log import PerformedByType
+from app.models.patient import Patient
 from app.models.staff_user import StaffUser
 from app.schemas.appointment import (
     AppointmentCreate,
@@ -81,10 +86,26 @@ async def get_appointment(
     request: Request,
     appointment_id: UUID,
     db: AsyncSession = Depends(get_db),
+    _staff: StaffUser | None = Depends(optional_staff_user),
+    patient: Patient | None = Depends(get_current_patient_user_optional),
 ) -> ResponseEnvelope[AppointmentResponse]:
+    # Anonymous callers get nothing: the endpoint previously exposed every
+    # appointment (and the attached patient record) to anyone holding a UUID.
+    if _staff is None and patient is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required.",
+        )
+
+    conditions = [Appointment.id == appointment_id]
+    # A patient is always scoped to their own appointments, regardless of any
+    # other filter, so ownership cannot be widened by the caller.
+    if patient is not None:
+        conditions.append(Appointment.patient_id == patient.id)
+
     stmt = (
         select(Appointment)
-        .where(Appointment.id == appointment_id)
+        .where(*conditions)
         .options(
             selectinload(Appointment.patient),
             selectinload(Appointment.dentist),
@@ -111,7 +132,15 @@ async def list_appointments(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    _staff: StaffUser | None = Depends(optional_staff_user),
+    patient: Patient | None = Depends(get_current_patient_user_optional),
 ) -> ResponseEnvelope[list[AppointmentResponse]]:
+    if _staff is None and patient is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required.",
+        )
+
     conditions = []
     if date_from is not None:
         conditions.append(Appointment.start_time >= date_from)
@@ -121,7 +150,13 @@ async def list_appointments(
         conditions.append(Appointment.status == status_filter)
     if dentist_id is not None:
         conditions.append(Appointment.dentist_id == dentist_id)
-    if patient_id is not None:
+
+    if patient is not None:
+        # Ownership is forced from the token. A patient_id supplied in the
+        # query string is ignored outright, otherwise any patient could read
+        # every other patient's appointments.
+        conditions.append(Appointment.patient_id == patient.id)
+    elif patient_id is not None:
         conditions.append(Appointment.patient_id == patient_id)
 
     count_stmt = select(func.count(Appointment.id))
@@ -159,6 +194,7 @@ async def update_appointment_status(
     appointment_id: UUID,
     payload: AppointmentStatusUpdate,
     db: AsyncSession = Depends(get_db),
+    _: StaffUser = Depends(get_current_staff_user),
 ) -> ResponseEnvelope[AppointmentResponse]:
     stmt = select(Appointment).where(Appointment.id == appointment_id)
     result = await db.execute(stmt)
@@ -167,7 +203,11 @@ async def update_appointment_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found.")
 
     appointment.status = payload.status
-    appointment.cancellation_reason = payload.cancellation_reason
+    # Only overwrite the cancellation reason when the caller actually supplied
+    # one, so an unrelated status change cannot silently wipe a reason recorded
+    # by an earlier cancellation.
+    if payload.cancellation_reason is not None:
+        appointment.cancellation_reason = payload.cancellation_reason
     await db.commit()
     full_stmt = (
         select(Appointment)

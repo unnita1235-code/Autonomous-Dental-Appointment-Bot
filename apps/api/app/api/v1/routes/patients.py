@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.rate_limit import limiter
+from app.api.v1.routes.deps import get_current_patient_user, get_current_staff_user
 from app.models.patient import Patient
+from app.models.staff_user import StaffUser
 from app.schemas.common import ResponseEnvelope
 from app.schemas.patient import PatientCreate, PatientResponse, PatientUpdate
 
@@ -21,6 +23,7 @@ async def create_patient(
     request: Request,
     payload: PatientCreate,
     db: AsyncSession = Depends(get_db),
+    _: StaffUser = Depends(get_current_staff_user),
 ) -> ResponseEnvelope[PatientResponse]:
     patient = Patient(**payload.model_dump())
     db.add(patient)
@@ -35,6 +38,7 @@ async def search_patients(
     request: Request,
     q: str = Query(..., min_length=1),
     db: AsyncSession = Depends(get_db),
+    _: StaffUser = Depends(get_current_staff_user),
 ) -> ResponseEnvelope[list[PatientResponse]]:
     query = f"%{q.strip()}%"
     result = await db.execute(
@@ -53,12 +57,22 @@ async def search_patients(
     )
 
 
+@router.get("/me", summary="Current Patient", description="Returns the authenticated patient's own profile. The patient is resolved from the access token only; no patient_id, email, or phone is accepted from the caller.", response_description="Authenticated patient details")
+@limiter.limit("30/minute")
+async def get_current_patient(
+    request: Request,
+    patient: Patient = Depends(get_current_patient_user),
+) -> ResponseEnvelope[PatientResponse]:
+    return ResponseEnvelope.success_response(data=PatientResponse.model_validate(patient))
+
+
 @router.get("/{patient_id}", summary="Get Patient", description="Retrieves a single patient record by their unique identifier.", response_description="Patient details")
 @limiter.limit("10/minute")
 async def get_patient(
     request: Request,
     patient_id: UUID,
     db: AsyncSession = Depends(get_db),
+    _: StaffUser = Depends(get_current_staff_user),
 ) -> ResponseEnvelope[PatientResponse]:
     patient = await db.get(Patient, patient_id)
     if not patient:
@@ -73,6 +87,7 @@ async def update_patient(
     patient_id: UUID,
     payload: PatientUpdate,
     db: AsyncSession = Depends(get_db),
+    _: StaffUser = Depends(get_current_staff_user),
 ) -> ResponseEnvelope[PatientResponse]:
     patient = await db.get(Patient, patient_id)
     if not patient:
@@ -93,6 +108,7 @@ async def list_patients(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    _: StaffUser = Depends(get_current_staff_user),
 ) -> ResponseEnvelope[list[PatientResponse]]:
     stmt = select(Patient).order_by(Patient.created_at.desc())
     if q:

@@ -70,6 +70,7 @@ async def create_conversation(
 async def get_conversation(
     conversation_id: UUID,
     db: AsyncSession = Depends(get_db),
+    _: StaffUser = Depends(get_current_staff_user),
 ) -> "ResponseEnvelope[ConversationResponse]":
     stmt = (
         select(Conversation)
@@ -161,6 +162,7 @@ async def update_conversation_status(
     conversation_id: UUID,
     payload: ConversationStatusUpdateRequest,
     db: AsyncSession = Depends(get_db),
+    _: StaffUser = Depends(get_current_staff_user),
 ) -> "ResponseEnvelope[ConversationResponse]":
     result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()

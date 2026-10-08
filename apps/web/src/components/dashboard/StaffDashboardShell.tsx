@@ -11,12 +11,20 @@ import {
   MessageSquareText,
   Settings,
   Users,
-  X
+  X,
+  ChevronDown,
+  Bot,
+  Zap,
 } from "lucide-react";
 
+import { cn } from "@/lib/design-system";
 import { useStaffSocket } from "@/hooks/useStaffSocket";
 import { parseJsonResponse } from "@/lib/http";
 import { useAppStore } from "@/store/useAppStore";
+import { DentalFlowLogo, DentalFlowAvatar } from "@/components/branding";
+import { Badge } from "@/components/ui/badge";
+import { MobileBottomNav, staffNavItems } from "@/components/ui/MobileBottomNav";
+import { AIIndicator } from "@/components/ai/AIIndicator";
 
 interface NavItem {
   href: string;
@@ -40,7 +48,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard/live-conversations", label: "Live Conversations", icon: MessageSquareText },
   { href: "/dashboard/patients", label: "Patients", icon: Users },
   { href: "/dashboard/analytics", label: "Analytics", icon: Activity },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings }
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 export default function StaffDashboardShell({ children }: StaffDashboardShellProps): JSX.Element {
@@ -50,6 +58,7 @@ export default function StaffDashboardShell({ children }: StaffDashboardShellPro
   const [mobileOpen, setMobileOpen] = useState(false);
   const [me, setMe] = useState<StaffMe | null>(null);
   const { isConnected } = useStaffSocket();
+  const [activeNavKey, setActiveNavKey] = useState("today");
 
   useEffect(() => {
     const loadMe = async (): Promise<void> => {
@@ -76,16 +85,23 @@ export default function StaffDashboardShell({ children }: StaffDashboardShellPro
   };
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-staff-background">
+      {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-60 border-r border-slate-200 bg-white transition-transform duration-200 lg:translate-x-0 ${
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 w-64 border-r border-staff-border bg-staff-surface transition-transform duration-200 lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        )}
       >
-        <div className="flex h-16 items-center justify-between border-b border-slate-100 px-4 lg:justify-start">
-          <p className="font-heading text-lg font-semibold text-primary">Staff Console</p>
+        <div className="flex h-16 items-center justify-between border-b border-staff-border px-4 lg:justify-start">
+          <div className="flex items-center gap-2">
+            <DentalFlowLogo size="default" variant="onPrimary" showText={false} />
+            <span className="font-heading text-label-lg font-semibold text-staff-on-surface">
+              Staff Console
+            </span>
+          </div>
           <button
-            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden"
+            className="rounded-md p-1.5 text-staff-on-surface-muted hover:bg-staff-surface-variant lg:hidden"
             onClick={() => setMobileOpen(false)}
             aria-label="Close sidebar"
           >
@@ -101,68 +117,114 @@ export default function StaffDashboardShell({ children }: StaffDashboardShellPro
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 rounded-r-lg border-l-4 px-3 py-2 text-sm font-medium transition ${
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
                   active
-                    ? "border-primary bg-primary-light text-primary"
-                    : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
+                    ? "bg-staff-primary text-staff-on-primary"
+                    : "text-staff-on-surface-variant hover:bg-staff-surface-variant hover:text-staff-on-surface"
+                )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4 flex-shrink-0" />
                 {item.label}
               </Link>
             );
           })}
         </nav>
+
+        {/* AI Status Footer */}
+        <div className="absolute bottom-0 left-0 right-0 border-t border-staff-border p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-staff-ai" />
+              <span className="text-caption font-medium text-staff-on-surface-variant">DentalFlow AI</span>
+            </div>
+            <AIIndicator
+              variant={isConnected ? "active" : "idle"}
+              size="sm"
+              label={isConnected ? "Online" : "Offline"}
+              animated={false}
+            />
+          </div>
+        </div>
       </aside>
 
       {mobileOpen ? (
         <button
-          className="fixed inset-0 z-30 bg-slate-950/20 lg:hidden"
+          className="fixed inset-0 z-30 bg-staff-background/20 lg:hidden"
           onClick={() => setMobileOpen(false)}
           aria-label="Close menu overlay"
         />
       ) : null}
 
-      <div className="lg:pl-60">
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-          <div className="flex h-16 items-center justify-between px-4 sm:px-6">
+      {/* Main Content Area */}
+      <div className="lg:pl-64">
+        {/* Top Header */}
+        <header className="sticky top-0 z-20 border-b border-staff-border bg-staff-surface/95 backdrop-blur-sm">
+          <div className="flex h-14 items-center justify-between px-4 sm:px-6">
             <div className="flex items-center gap-3">
               <button
-                className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden"
+                className="rounded-md p-1.5 text-staff-on-surface-muted hover:bg-staff-surface-variant lg:hidden"
                 onClick={() => setMobileOpen(true)}
                 aria-label="Open sidebar"
               >
                 <Menu className="h-5 w-5" />
               </button>
               <div>
-                <p className="font-heading text-base font-semibold text-slate-900">{clinicName}</p>
-                <p className="text-xs text-muted">
-                  Staff room: {isConnected ? "Connected" : "Disconnected"}
+                <p className="font-heading text-label-lg font-semibold text-staff-on-surface">{clinicName}</p>
+                <p className="text-caption text-staff-on-surface-muted">
+                  Staff room: <span className={isConnected ? "text-staff-success" : "text-staff-error"}>
+                    {isConnected ? "Connected" : "Disconnected"}
+                  </span>
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-slate-900">
-                  {me?.first_name ? `${me.first_name} ${me.last_name ?? ""}`.trim() : "Staff"}
-                </p>
-                <p className="text-xs text-muted">{me?.email ?? "staff@clinic.local"}</p>
+              {/* AI Connection Badge - reflects the real socket state, not a fixed label */}
+              <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-full bg-staff-ai-container/50 border border-staff-ai/20">
+                <Bot className="h-3.5 w-3.5 text-staff-ai" />
+                <span className="text-caption font-medium text-staff-on-ai-container">
+                  {isConnected ? "AI Active" : "AI Offline"}
+                </span>
               </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
-                {avatarText}
+
+              {/* User Profile */}
+              <div className="flex items-center gap-3">
+                <div className="hidden text-right sm:block">
+                  <p className="text-sm font-medium text-staff-on-surface">
+                    {me?.first_name ? `${me.first_name} ${me.last_name ?? ""}`.trim() : "Staff"}
+                  </p>
+                  <p className="text-caption text-staff-on-surface-muted">{me?.email ?? "staff@clinic.local"}</p>
+                </div>
+                <DentalFlowAvatar
+                  size="sm"
+                  fallback={avatarText}
+                  variant="primary"
+                  online={isConnected}
+                />
+                <button
+                  className="rounded-md border border-staff-border px-3 py-1.5 text-sm font-medium text-staff-on-surface transition hover:border-staff-border-focus hover:bg-staff-surface-variant"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </button>
               </div>
-              <button
-                className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary"
-                onClick={handleLogout}
-              >
-                Logout
-              </button>
             </div>
           </div>
         </header>
 
-        <main className="p-4 sm:p-6">{children}</main>
+        {/* Main Content */}
+        <main id="main-content" className="p-4 sm:p-6">{children}</main>
+
+        {/* Mobile Bottom Navigation */}
+        <MobileBottomNav
+          items={staffNavItems}
+          activeKey={activeNavKey}
+          onChange={setActiveNavKey}
+          variant="staff"
+          layout="floating"
+          safeArea={true}
+        />
       </div>
     </div>
   );
